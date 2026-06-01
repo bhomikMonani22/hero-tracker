@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Hero Tracker — Yantrayug</title>
+<title>Hero Scheme Tracker — Yantrayug</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -11,782 +11,514 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-tailwind.config = {
-  theme: { extend: {
-    fontFamily: {
-      sans:  ['Geist', 'system-ui', 'sans-serif'],
-      serif: ['Instrument Serif', 'Georgia', 'serif'],
-      mono:  ['JetBrains Mono', 'monospace'],
-    },
-    colors: {
-      cream: { DEFAULT: '#F8F4ED', dark: '#EFE9DD', deep: '#E8E1D2' },
-      ink:   { DEFAULT: '#0A0A0A', soft: '#1A1A1A', mute: '#6B6B6B', faint: '#A8A39A' },
-      lav:   { 50:'#F4F0FF', 100:'#E6DCFF', 200:'#D4C5FF', 300:'#B8A6FF', 500:'#8E78F0', 700:'#5840C8' },
-      peach: { 100:'#FFE5D2', 300:'#FDD7B5', 500:'#FFB28A' },
-      mint:  { 300:'#B5F0D8', 500:'#5FD9A0' },
-    },
-    boxShadow: {
-      soft: '0 1px 2px rgba(10,10,10,0.04), 0 4px 16px rgba(10,10,10,0.04)',
-      card: '0 1px 0 rgba(10,10,10,0.03), 0 8px 28px -8px rgba(10,10,10,0.10)',
-      lift: '0 1px 0 rgba(10,10,10,0.03), 0 18px 48px -12px rgba(10,10,10,0.18)',
-    },
-  } }
-}
+tailwind.config = { theme: { extend: {
+  fontFamily: { sans:['Geist','system-ui','sans-serif'], serif:['Instrument Serif','Georgia','serif'], mono:['JetBrains Mono','monospace'] },
+  colors: {
+    cream:{DEFAULT:'#F8F4ED',dark:'#EFE9DD',deep:'#E8E1D2'},
+    ink:{DEFAULT:'#0A0A0A',soft:'#1A1A1A',mute:'#6B6B6B',faint:'#A8A39A'},
+    lav:{50:'#F4F0FF',100:'#E6DCFF',200:'#D4C5FF',300:'#B8A6FF',500:'#8E78F0',700:'#5840C8'},
+    peach:{100:'#FFE5D2',300:'#FDD7B5',500:'#FFB28A'},
+    mint:{300:'#B5F0D8',500:'#5FD9A0'},
+  },
+  boxShadow:{ soft:'0 1px 2px rgba(10,10,10,0.04), 0 4px 16px rgba(10,10,10,0.04)',
+    card:'0 1px 0 rgba(10,10,10,0.03), 0 8px 28px -8px rgba(10,10,10,0.10)',
+    lift:'0 1px 0 rgba(10,10,10,0.03), 0 18px 48px -12px rgba(10,10,10,0.18)' },
+} } }
 </script>
 <style>
-  html { -webkit-text-size-adjust: 100%; }
-  body { background:#F8F4ED; color:#0A0A0A; letter-spacing:-0.01em; font-feature-settings:"ss01"; }
-  .display-serif { font-family:'Instrument Serif',Georgia,serif; font-style:italic; letter-spacing:-0.01em; }
-  .tracking-tight-hd { letter-spacing:-0.025em; }
-  /* grain */
+  html{-webkit-text-size-adjust:100%}
+  body{background:#F8F4ED;color:#0A0A0A;letter-spacing:-0.01em}
+  .display-serif{font-family:'Instrument Serif',Georgia,serif;font-style:italic;letter-spacing:-0.01em}
+  .hd{letter-spacing:-0.025em}
   .grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;mix-blend-mode:multiply;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
-  /* orbs */
-  .orb{position:fixed;border-radius:9999px;filter:blur(60px);opacity:.55;z-index:0;pointer-events:none;}
-  .orb-a{width:420px;height:420px;background:#D4C5FF;top:-160px;left:-140px;animation:floatA 22s ease-in-out infinite;}
-  .orb-b{width:380px;height:380px;background:#FFD7B5;bottom:-180px;right:-120px;animation:floatB 26s ease-in-out infinite;}
-  .orb-c{width:300px;height:300px;background:#B8A6FF;top:40%;right:-160px;animation:floatA 18s ease-in-out infinite;}
-  @keyframes floatA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.08)}}
-  @keyframes floatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-36px,-28px) scale(1.06)}}
-  /* live pulse */
-  .pulse{box-shadow:0 0 0 0 rgba(95,217,160,.55);animation:pulse 1.8s infinite;}
-  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(95,217,160,.55)}70%{box-shadow:0 0 0 10px rgba(95,217,160,0)}100%{box-shadow:0 0 0 0 rgba(95,217,160,0)}}
-  /* bar pulse */
-  .barp{transform-origin:bottom;animation:barp 2.4s ease-in-out infinite;}
-  @keyframes barp{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.15)}}
-  /* rise-in */
-  .rise{opacity:0;transform:translateY(14px);animation:rise .8s cubic-bezier(.2,.8,.2,1) forwards;}
-  .rise-1{animation-delay:.05s}.rise-2{animation-delay:.15s}.rise-3{animation-delay:.25s}.rise-4{animation-delay:.35s}.rise-5{animation-delay:.45s}.rise-6{animation-delay:.55s}
-  @keyframes rise{to{opacity:1;transform:translateY(0)}}
-  .card-lift{transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s cubic-bezier(.2,.8,.2,1);}
-  .card-lift:hover{transform:translateY(-2px);}
-  /* progress bar fill */
-  .pfill{transition:width .6s cubic-bezier(.2,.8,.2,1);}
-  /* inputs */
-  .cell-in{background:transparent;border:1px solid transparent;border-radius:8px;padding:4px 8px;width:100%;}
-  .cell-in:hover{background:#FFFFFF;border-color:#E8E1D2;}
-  .cell-in:focus{background:#FFFFFF;border-color:#1A1A1A;outline:none;}
-  input,select,textarea{font-size:16px;}
-  @media(min-width:640px){ .sm-13{font-size:13px} }
-  table{border-collapse:separate;border-spacing:0;}
-  .sticky-name{position:sticky;left:0;background:#FFFFFF;z-index:2;}
-  tr:hover .sticky-name{background:#FBF9F4;}
-  .scrollwrap{scrollbar-width:thin;scrollbar-color:#D4C5FF transparent;}
-  .scrollwrap::-webkit-scrollbar{height:8px;width:8px}
-  .scrollwrap::-webkit-scrollbar-thumb{background:#D4C5FF;border-radius:9999px}
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .orb{position:fixed;border-radius:9999px;filter:blur(60px);opacity:.5;z-index:0;pointer-events:none}
+  .orb-a{width:420px;height:420px;background:#D4C5FF;top:-160px;left:-140px;animation:fa 22s ease-in-out infinite}
+  .orb-b{width:360px;height:360px;background:#FFD7B5;bottom:-180px;right:-120px;animation:fb 26s ease-in-out infinite}
+  .orb-c{width:300px;height:300px;background:#B8A6FF;top:42%;right:-160px;animation:fa 18s ease-in-out infinite}
+  @keyframes fa{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,30px) scale(1.08)}}
+  @keyframes fb{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-36px,-28px) scale(1.06)}}
+  .pulse{box-shadow:0 0 0 0 rgba(95,217,160,.55);animation:pl 1.8s infinite}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(95,217,160,.55)}70%{box-shadow:0 0 0 10px rgba(95,217,160,0)}100%{box-shadow:0 0 0 0 rgba(95,217,160,0)}}
+  .rise{opacity:0;transform:translateY(14px);animation:ri .7s cubic-bezier(.2,.8,.2,1) forwards}
+  .rise-1{animation-delay:.05s}.rise-2{animation-delay:.13s}.rise-3{animation-delay:.21s}.rise-4{animation-delay:.29s}.rise-5{animation-delay:.37s}
+  @keyframes ri{to{opacity:1;transform:translateY(0)}}
+  .pfill{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .cell-in{background:transparent;border:1px solid transparent;border-radius:8px;padding:3px 7px;width:100%}
+  .cell-in:hover{background:#fff;border-color:#E8E1D2}.cell-in:focus{background:#fff;border-color:#1A1A1A;outline:none}
+  input,select,textarea{font-size:16px}
+  .scrollwrap{scrollbar-width:thin;scrollbar-color:#D4C5FF transparent}
+  .scrollwrap::-webkit-scrollbar{height:8px;width:8px}.scrollwrap::-webkit-scrollbar-thumb{background:#D4C5FF;border-radius:9999px}
   ::selection{background:#E6DCFF}
-  .toast-in{animation:rise .4s cubic-bezier(.2,.8,.2,1) forwards}
+  .chip{font-variant-numeric:tabular-nums}
+  details>summary{list-style:none}details>summary::-webkit-details-marker{display:none}
+  .toast-in{animation:ri .35s cubic-bezier(.2,.8,.2,1) forwards}
 </style>
 </head>
 <body class="font-sans antialiased min-h-screen">
-<div class="grain"></div>
-<div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div>
+<div class="grain"></div><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="orb orb-c"></div>
 
-<div class="relative z-10 max-w-7xl mx-auto px-5 sm:px-8">
-
-  <!-- ===== Header ===== -->
+<div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-8">
   <header class="pt-7 sm:pt-10 pb-2 flex items-center justify-between gap-4 flex-wrap">
     <div class="rise rise-1">
       <div class="flex items-center gap-2.5">
         <div class="h-9 w-9 rounded-xl bg-ink text-cream grid place-items-center font-bold text-[15px]">H</div>
-        <h1 class="text-[22px] sm:text-[26px] font-semibold tracking-tight-hd">Hero <span class="display-serif font-normal">tracker</span></h1>
+        <h1 class="text-[22px] sm:text-[26px] font-semibold hd">Hero <span class="display-serif font-normal">scheme</span> tracker</h1>
       </div>
-      <p class="text-ink-mute text-[12.5px] mt-1">Scheme target vs Marg achievement · Yantrayug Hero Hub</p>
+      <p class="text-ink-mute text-[12.5px] mt-1">Target vs Marg achievement · uncapped · Yantrayug Hero Hub</p>
     </div>
-    <div class="flex items-center gap-3 rise rise-2">
-      <div class="flex items-center gap-2 bg-white/70 backdrop-blur border border-cream-deep rounded-full px-3 py-1.5">
-        <span id="liveDot" class="h-2 w-2 rounded-full bg-mint-500 pulse"></span>
-        <span id="syncTxt" class="text-[11px] tracking-wider uppercase text-ink-mute font-medium">connecting…</span>
+    <div class="flex items-center gap-2.5 rise rise-2">
+      <select id="periodSel" class="bg-white/70 backdrop-blur border border-cream-deep rounded-full px-3.5 py-2 text-[12.5px] font-medium"></select>
+      <div class="flex items-center gap-2 bg-white/70 backdrop-blur border border-cream-deep rounded-full px-3 py-2">
+        <span id="dot" class="h-2 w-2 rounded-full bg-mint-500 pulse"></span>
+        <span id="sync" class="text-[11px] tracking-wider uppercase text-ink-mute font-medium">loading…</span>
       </div>
     </div>
   </header>
 
-  <!-- ===== Stat strip ===== -->
-  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-5">
-    <div class="rise rise-2 bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 sm:p-5">
-      <div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Total target</div>
-      <div id="sTarget" class="text-[20px] sm:text-[26px] font-semibold tracking-tight-hd mt-1">—</div>
-    </div>
-    <div class="rise rise-3 bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 sm:p-5">
-      <div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Achieved</div>
-      <div id="sAch" class="text-[20px] sm:text-[26px] font-semibold tracking-tight-hd mt-1 text-lav-700">—</div>
-    </div>
-    <div class="rise rise-4 bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 sm:p-5">
-      <div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Remaining</div>
-      <div id="sLeft" class="text-[20px] sm:text-[26px] font-semibold tracking-tight-hd mt-1">—</div>
-    </div>
-    <div class="rise rise-5 bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 sm:p-5 relative overflow-hidden">
-      <div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Overall progress</div>
-      <div class="flex items-end gap-2 mt-1">
-        <div id="sPct" class="text-[20px] sm:text-[26px] font-semibold tracking-tight-hd">—</div>
-        <div class="flex items-end gap-[3px] h-7 mb-1 opacity-80">
-          <div class="barp w-[3px] bg-lav-300 rounded-full" style="height:40%;animation-delay:0s"></div>
-          <div class="barp w-[3px] bg-lav-500 rounded-full" style="height:70%;animation-delay:.3s"></div>
-          <div class="barp w-[3px] bg-lav-300 rounded-full" style="height:55%;animation-delay:.6s"></div>
-          <div class="barp w-[3px] bg-lav-700 rounded-full" style="height:90%;animation-delay:.9s"></div>
-          <div class="barp w-[3px] bg-lav-300 rounded-full" style="height:48%;animation-delay:1.2s"></div>
-        </div>
-      </div>
-      <div class="h-1.5 rounded-full bg-cream-deep mt-2.5 overflow-hidden">
-        <div id="sBar" class="pfill h-full rounded-full bg-lav-500" style="width:0%"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== Nav + tools ===== -->
-  <section class="pt-7 sm:pt-9 flex items-center justify-between gap-3 flex-wrap rise rise-5">
+  <section class="pt-5 flex items-center justify-between gap-3 flex-wrap rise rise-3">
     <div class="p-1 bg-cream-dark/60 rounded-full border border-cream-deep inline-flex">
-      <button data-view="targets" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Targets</button>
+      <button data-view="master" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Master</button>
+      <button data-view="parties" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Parties</button>
       <button data-view="imports" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Imports</button>
     </div>
-    <div id="targetsTools" class="flex items-center gap-2">
-      <button id="addBtn" class="bg-cream/60 backdrop-blur border border-cream-deep rounded-full px-4 py-2 text-[13px] font-medium hover:bg-cream-dark transition">+ Party</button>
-      <button id="exportBtn" class="bg-cream/60 backdrop-blur border border-cream-deep rounded-full px-4 py-2 text-[13px] font-medium hover:bg-cream-dark transition">Export</button>
+    <div class="flex items-center gap-2">
+      <select id="weekSel" class="px-3 py-2 rounded-lg border border-cream-deep bg-cream/50 text-[12.5px] font-medium">
+        <option value="100">Pace: full month</option>
+        <option value="35">Week 1 (35%)</option><option value="60">Week 2 (60%)</option>
+        <option value="90">Week 3 (90%)</option><option value="100">Week 4 (100%)</option>
+      </select>
     </div>
   </section>
 
-  <!-- ===== TARGETS VIEW ===== -->
-  <section id="view-targets" class="pt-5 pb-24">
+  <!-- MASTER -->
+  <section id="v-master" class="pt-5 pb-24"></section>
+
+  <!-- PARTIES -->
+  <section id="v-parties" class="pt-5 pb-24 hidden">
     <div class="flex items-center gap-2.5 flex-wrap mb-4">
-      <div class="relative flex-1 min-w-[200px]">
-        <input id="search" placeholder="Search party, RC code, Marg name…" autocomplete="off" autocorrect="off" spellcheck="false"
-          class="w-full px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white focus:border-ink-soft transition text-[14px]" />
-      </div>
-      <select id="filter" class="px-3 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white text-[13px] font-medium">
-        <option value="all">All parties</option>
-        <option value="gap">Has gap (not 100%)</option>
-        <option value="done">Target met</option>
-        <option value="zero">No achievement yet</option>
+      <input id="search" placeholder="Search retailer, RC, route…" autocomplete="off" autocorrect="off" spellcheck="false"
+        class="flex-1 min-w-[180px] px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white focus:border-ink-soft text-[14px]" />
+      <select id="bucketSel" class="px-3 py-2.5 rounded-lg border border-cream-deep bg-cream/40 text-[13px] font-medium"></select>
+      <select id="pfilter" class="px-3 py-2.5 rounded-lg border border-cream-deep bg-cream/40 text-[13px] font-medium">
+        <option value="all">All</option><option value="behind">Behind pace</option>
+        <option value="close">Close to 100% (70–99%)</option><option value="done">At/over 100%</option><option value="gap">Has any gap</option>
       </select>
-      <select id="sort" class="px-3 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white text-[13px] font-medium">
-        <option value="name">Sort: Name</option>
-        <option value="left">Sort: Most remaining</option>
-        <option value="target">Sort: Biggest target</option>
-        <option value="pct">Sort: Lowest %</option>
+      <select id="psort" class="px-3 py-2.5 rounded-lg border border-cream-deep bg-cream/40 text-[13px] font-medium">
+        <option value="gap">Sort: biggest ₹ gap</option><option value="pct">Sort: lowest %</option>
+        <option value="target">Sort: biggest target</option><option value="name">Sort: name</option>
       </select>
     </div>
-
-    <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card overflow-hidden">
-      <div class="scrollwrap overflow-x-auto">
-        <table class="w-full text-[13px] min-w-[760px]">
-          <thead>
-            <tr class="text-ink-mute text-[11px] uppercase tracking-wider border-b border-cream-deep">
-              <th class="sticky-name text-left font-medium px-4 py-3" style="background:#fff">Party</th>
-              <th class="text-right font-medium px-3 py-3 w-[120px]">Target</th>
-              <th class="text-right font-medium px-3 py-3 w-[120px]">Achieved</th>
-              <th class="text-right font-medium px-3 py-3 w-[110px]">Remaining</th>
-              <th class="text-left font-medium px-4 py-3 w-[160px]">Progress</th>
-              <th class="px-2 py-3 w-[40px]"></th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
-      <div id="emptyState" class="hidden py-16 text-center text-ink-mute text-[13px]">No parties match.</div>
-      <div id="tableFoot" class="border-t border-cream-deep px-4 py-3 text-[12px] text-ink-mute flex items-center justify-between flex-wrap gap-2">
-        <span id="rowCount">—</span>
-        <span id="metaLine" class="font-mono text-[11px] text-ink-faint"></span>
-      </div>
-    </div>
-    <p class="text-[12px] text-ink-faint mt-3">Tip — edit Target, Achieved or the Marg name directly in the table; changes save instantly. No need to re-upload for a few small edits.</p>
+    <div id="partyList" class="space-y-2.5"></div>
+    <div id="partyEmpty" class="hidden py-16 text-center text-ink-mute text-[13px]">No parties match.</div>
   </section>
 
-  <!-- ===== IMPORTS VIEW ===== -->
-  <section id="view-imports" class="pt-5 pb-24 hidden">
-    <div class="grid lg:grid-cols-2 gap-5">
-      <!-- Tracker import -->
-      <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5 sm:p-6 card-lift">
-        <div class="flex items-center gap-2">
-          <span class="inline-block px-2 py-0.5 bg-lav-50 text-lav-700 rounded-full text-[11px] font-medium">Targets</span>
-          <h3 class="text-[16px] font-semibold">Update tracker</h3>
-        </div>
-        <p class="text-ink-mute text-[13px] mt-2 leading-relaxed">Upload the Hero scheme tracker (RC Code · Retailer · target · Marg name). Existing parties update by RC code; new ones are added. Achievement is untouched.</p>
-        <label class="block mt-4">
-          <input type="file" id="trackerFile" accept=".xlsx,.xls,.csv" class="hidden" />
-          <span id="trackerDrop" class="block border border-dashed border-cream-deep rounded-xl px-4 py-7 text-center text-[13px] text-ink-mute hover:bg-cream/50 cursor-pointer transition">Drop or tap to choose tracker file</span>
-        </label>
-        <div id="trackerMap" class="hidden mt-4 space-y-3"></div>
-        <div id="trackerMeta" class="mt-3 text-[11px] font-mono text-ink-faint"></div>
+  <!-- IMPORTS -->
+  <section id="v-imports" class="pt-5 pb-24 hidden">
+    <div class="grid lg:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5">
+        <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-mint-300 text-ink rounded-full text-[11px] font-medium">Live</span><h3 class="text-[15px] font-semibold">Marg export</h3></div>
+        <p class="text-ink-mute text-[12.5px] mt-2 leading-relaxed">Party × item sale (.xls/.xlsx). Buckets by part no, value incl GST. Unmatched names get mapped once.</p>
+        <label class="block mt-3"><input type="file" id="margFile" accept=".xls,.xlsx,.csv" class="hidden"/>
+          <span id="margDrop" class="block border border-dashed border-cream-deep rounded-xl px-3 py-6 text-center text-[12.5px] text-ink-mute hover:bg-cream/50 cursor-pointer">Choose Marg export</span></label>
+        <div id="margMeta" class="mt-2 text-[11px] font-mono text-ink-faint"></div>
       </div>
-
-      <!-- Marg import -->
-      <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5 sm:p-6 card-lift">
-        <div class="flex items-center gap-2">
-          <span class="inline-block px-2 py-0.5 bg-mint-300 text-ink rounded-full text-[11px] font-medium">Achievement</span>
-          <h3 class="text-[16px] font-semibold">Upload Marg export</h3>
-        </div>
-        <p class="text-ink-mute text-[13px] mt-2 leading-relaxed">Upload the Marg party-wise sales export. We match each party by Marg name (then fuzzy), fill Achieved, and show anything unmatched so you can map it in one click.</p>
-        <label class="block mt-4">
-          <input type="file" id="margFile" accept=".xlsx,.xls,.csv" class="hidden" />
-          <span id="margDrop" class="block border border-dashed border-cream-deep rounded-xl px-4 py-7 text-center text-[13px] text-ink-mute hover:bg-cream/50 cursor-pointer transition">Drop or tap to choose Marg export</span>
-        </label>
-        <div id="margMap" class="hidden mt-4 space-y-3"></div>
-        <div id="margMeta" class="mt-3 text-[11px] font-mono text-ink-faint"></div>
+      <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5">
+        <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-lav-50 text-lav-700 rounded-full text-[11px] font-medium">Targets</span><h3 class="text-[15px] font-semibold">Tracker sheet</h3></div>
+        <p class="text-ink-mute text-[12.5px] mt-2 leading-relaxed">Master TRACKER sheet — RC, retailer, 8 targets (+ achievement snapshot). Upserts by RC code.</p>
+        <label class="block mt-3"><input type="file" id="trkFile" accept=".xls,.xlsx,.csv" class="hidden"/>
+          <span id="trkDrop" class="block border border-dashed border-cream-deep rounded-xl px-3 py-6 text-center text-[12.5px] text-ink-mute hover:bg-cream/50 cursor-pointer">Choose tracker file</span></label>
+        <div id="trkMeta" class="mt-2 text-[11px] font-mono text-ink-faint"></div>
+      </div>
+      <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5">
+        <div class="flex items-center gap-2"><span class="px-2 py-0.5 bg-peach-300 text-ink rounded-full text-[11px] font-medium">Scheme</span><h3 class="text-[15px] font-semibold">Annexure</h3></div>
+        <p class="text-ink-mute text-[12.5px] mt-2 leading-relaxed">Part→bucket list for this period (.xlsx/.csv): cols <span class="font-mono">part_number, scheme(PG/B1/B2), group</span>.</p>
+        <label class="block mt-3"><input type="file" id="annFile" accept=".xls,.xlsx,.csv" class="hidden"/>
+          <span id="annDrop" class="block border border-dashed border-cream-deep rounded-xl px-3 py-6 text-center text-[12.5px] text-ink-mute hover:bg-cream/50 cursor-pointer">Choose annexure</span></label>
+        <div id="annMeta" class="mt-2 text-[11px] font-mono text-ink-faint"></div>
       </div>
     </div>
-
-    <!-- Marg preview / matching panel -->
-    <div id="margPanel" class="hidden mt-5"></div>
+    <div id="importPanel" class="mt-5"></div>
   </section>
 </div>
 
-<!-- toast -->
-<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden">
-  <div class="bg-ink text-cream px-4 py-2.5 rounded-full text-[13px] shadow-lift toast-in"></div>
-</div>
-
-<!-- modal -->
-<div id="modal" class="fixed inset-0 z-50 hidden">
-  <div class="absolute inset-0 bg-ink/30 backdrop-blur-sm" data-close></div>
-  <div class="absolute inset-x-3 top-10 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[440px] bg-cream rounded-2xl border border-cream-deep shadow-lift p-5 sm:p-6">
-    <div id="modalBody"></div>
-  </div>
-</div>
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden"><div class="bg-ink text-cream px-4 py-2.5 rounded-full text-[13px] shadow-lift toast-in"></div></div>
+<div id="modal" class="fixed inset-0 z-50 hidden"><div class="absolute inset-0 bg-ink/30 backdrop-blur-sm" data-close></div>
+  <div class="absolute inset-x-3 top-8 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-[460px] max-h-[85vh] overflow-auto bg-cream rounded-2xl border border-cream-deep shadow-lift p-5"><div id="modalBody"></div></div></div>
 
 <script>
-// ===================== CONFIG =====================
-const SUPABASE_URL = "https://wqdpvalgkfqyfntalfxd.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Amja9S9VzUXfPTwPJitjDg_q06Oj5cW";
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL="https://wqdpvalgkfqyfntalfxd.supabase.co";
+const SUPABASE_KEY="sb_publishable_Amja9S9VzUXfPTwPJitjDg_q06Oj5cW";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
-// ===================== STATE =====================
-let PARTIES = [];           // {id, rc_code, retailer_name, marg_name, target, achieved, note}
-let ALIASES = [];           // {marg_name, rc_code}
-let META = {};              // key -> value
-let view = 'targets';
+let PERIOD='2026-05', PERIODS=[], PARTIES=[], TMAP={}, DICT={}, BUCKETPARTS={}, ALIASES={}, BUCKETS=[], PCFG={};
+let view='master';
 
-// ===================== HELPERS =====================
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const fmtFull = n => '₹' + Math.round(n||0).toLocaleString('en-IN');
-const fmtShort = n => {
-  n = Math.round(n||0);
-  if (Math.abs(n) >= 1e7) return '₹' + (n/1e7).toFixed(2).replace(/\.00$/,'') + ' Cr';
-  if (Math.abs(n) >= 1e5) return '₹' + (n/1e5).toFixed(2).replace(/\.00$/,'') + ' L';
-  if (Math.abs(n) >= 1e3) return '₹' + (n/1e3).toFixed(0) + 'k';
-  return '₹' + n.toLocaleString('en-IN');
-};
-function toast(msg, warn){
-  const t = $('#toast'); const inner = t.firstElementChild;
-  inner.textContent = msg;
-  inner.className = (warn ? 'bg-peach-500 text-ink' : 'bg-ink text-cream') + ' px-4 py-2.5 rounded-full text-[13px] shadow-lift toast-in';
-  t.classList.remove('hidden');
-  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.add('hidden'), 2200);
-}
-function norm(s){
-  return String(s||'').toUpperCase().replace(/&/g,' AND ')
-    .replace(/W\/?O\s*GST/g,'').replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
-}
-const tokset = s => new Set(norm(s).split(' ').filter(Boolean));
-function dice(a,b){
-  const A=tokset(a),B=tokset(b); if(!A.size||!B.size) return 0;
-  let inter=0; A.forEach(x=>{ if(B.has(x)) inter++; });
-  return 2*inter/(A.size+B.size);
-}
-function parseAmount(v){
-  if(typeof v==='number') return v;
-  let s=String(v||'').replace(/[₹,\s]/g,'').replace(/\(([\d.]+)\)/,'-$1').replace(/(cr|dr)$/i,'');
-  const n=parseFloat(s); return isNaN(n)?0:Math.abs(n);
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const inr=n=>'₹'+Math.round(n||0).toLocaleString('en-IN');
+const short=n=>{n=Math.round(n||0);const a=Math.abs(n);if(a>=1e7)return '₹'+(n/1e7).toFixed(2).replace(/\.00$/,'')+' Cr';if(a>=1e5)return '₹'+(n/1e5).toFixed(2).replace(/\.00$/,'')+' L';if(a>=1e3)return '₹'+(n/1e3).toFixed(0)+'k';return '₹'+n.toLocaleString('en-IN');};
+const fmt=(n,basis)=>basis==='qty'?Math.round(n||0).toLocaleString('en-IN'):short(n);
+function toast(m,warn){const t=$('#toast'),i=t.firstElementChild;i.textContent=m;i.className=(warn?'bg-peach-500 text-ink':'bg-ink text-cream')+' px-4 py-2.5 rounded-full text-[13px] shadow-lift toast-in';t.classList.remove('hidden');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.add('hidden'),2200);}
+const norm=s=>String(s||'').toUpperCase().replace(/&/g,' AND ').replace(/W\/?O\s*GST/g,'').replace(/[^A-Z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+const toks=s=>new Set(norm(s).split(' ').filter(Boolean));
+function dice(a,b){const A=toks(a),B=toks(b);if(!A.size||!B.size)return 0;let i=0;A.forEach(x=>{if(B.has(x))i++;});return 2*i/(A.size+B.size);}
+function amt(v){if(typeof v==='number')return v;let s=String(v||'').replace(/[₹,\s]/g,'').replace(/\(([\d.]+)\)/,'-$1').replace(/(cr|dr)$/i,'');const n=parseFloat(s);return isNaN(n)?0:n;}
+const pace=()=>(+$('#weekSel').value||100)/100;
+
+async function selAll(table, cols, eq){
+  let out=[], from=0;
+  for(;;){
+    let q=sb.from(table).select(cols).range(from,from+999);
+    if(eq) for(const k in eq) q=q.eq(k,eq[k]);
+    const {data,error}=await q; if(error)throw error;
+    out=out.concat(data); if(data.length<1000)break; from+=1000;
+  }
+  return out;
 }
 
-// ===================== LOAD =====================
+function bucketLabel(k){ if(k==='overall')return 'Overall'; if(k==='basket1')return 'Basket 1'; if(k==='basket2')return 'Basket 2'; return k.replace(/^pg:/,''); }
+function bucketShort(k){ if(k==='overall')return 'Ovr'; if(k==='basket1')return 'B1'; if(k==='basket2')return 'B2';
+  return k.replace(/^pg:/,'').split(' ').map(w=>w[0]).join(''); }
+
 async function load(){
   try{
-    const [{data:p,error:e1},{data:a},{data:m}] = await Promise.all([
-      sb.from('hero_parties').select('*').order('retailer_name'),
-      sb.from('hero_marg_aliases').select('*'),
-      sb.from('hero_meta').select('*'),
+    PERIODS=await selAll('hero_periods','period,label,config');
+    if(!PERIODS.find(p=>p.period===PERIOD)) PERIOD=(PERIODS[0]||{}).period||PERIOD;
+    PCFG=(PERIODS.find(p=>p.period===PERIOD)||{}).config||{};
+    const [pp,tg,sp,al]=await Promise.all([
+      selAll('hero_party_period','rc_code,retailer_name,route,rc_type,ebd_target',{period:PERIOD}),
+      selAll('hero_party_targets','rc_code,bucket,basis,target,achieved_hero,achieved_live',{period:PERIOD}),
+      selAll('hero_scheme_parts','part_number,scheme,pg_group',{period:PERIOD}),
+      selAll('hero_marg_aliases','marg_name,rc_code'),
     ]);
-    if(e1) throw e1;
-    PARTIES = p||[]; ALIASES = a||[];
-    META = {}; (m||[]).forEach(r=> META[r.key]=r.value);
-    $('#liveDot').className='h-2 w-2 rounded-full bg-mint-500 pulse';
-    $('#syncTxt').textContent='live · synced';
-    renderStats(); renderTable(); renderMeta();
-  }catch(err){
-    console.error(err);
-    $('#liveDot').className='h-2 w-2 rounded-full bg-peach-500';
-    $('#syncTxt').textContent='offline';
-    toast('Could not reach database', true);
-  }
+    // parties
+    const byrc={}; pp.forEach(p=>byrc[p.rc_code]={...p,buckets:{}});
+    const bset=new Set();
+    tg.forEach(t=>{ bset.add(t.bucket); (byrc[t.rc_code]=byrc[t.rc_code]||{rc_code:t.rc_code,retailer_name:t.rc_code,buckets:{}}).buckets[t.bucket]={target:+t.target||0,live:+t.achieved_live||0,hero:+t.achieved_hero||0,basis:t.basis}; });
+    PARTIES=Object.values(byrc);
+    BUCKETS=[...bset].sort((a,b)=>{const o=k=>k==='overall'?0:k==='basket1'?1:k==='basket2'?2:3;return o(a)-o(b)||a.localeCompare(b);});
+    // dict
+    DICT={}; BUCKETPARTS={};
+    sp.forEach(d=>{ const b= d.scheme==='PG'?'pg:'+d.pg_group : d.scheme==='B1'?'basket1':'basket2';
+      (DICT[d.part_number]=DICT[d.part_number]||[]).push(b); (BUCKETPARTS[b]=BUCKETPARTS[b]||[]).push(d.part_number); });
+    ALIASES={}; al.forEach(a=>{ if(a.rc_code) ALIASES[norm(a.marg_name)]=a.rc_code; });
+    // ui
+    $('#periodSel').innerHTML=PERIODS.map(p=>`<option value="${p.period}" ${p.period===PERIOD?'selected':''}>${esc(p.label||p.period)}</option>`).join('');
+    $('#bucketSel').innerHTML=`<option value="overall">Focus: Overall</option>`+BUCKETS.filter(b=>b!=='overall').map(b=>`<option value="${esc(b)}">Focus: ${esc(bucketLabel(b))}</option>`).join('');
+    $('#dot').className='h-2 w-2 rounded-full bg-mint-500 pulse'; $('#sync').textContent='live · synced';
+    renderMaster(); renderParties();
+  }catch(e){ console.error(e); $('#dot').className='h-2 w-2 rounded-full bg-peach-500'; $('#sync').textContent='offline'; toast('Load failed',true); }
 }
 
-// ===================== STATS =====================
-function renderStats(){
-  const t = PARTIES.reduce((s,p)=>s+(+p.target||0),0);
-  const achTotal = PARTIES.reduce((s,p)=>s+(+p.achieved||0),0);
-  const left = Math.max(t-achTotal,0);
-  const pct = t? Math.min(100, achTotal/t*100):0;
-  $('#sTarget').textContent = fmtShort(t);
-  $('#sAch').textContent = fmtShort(achTotal);
-  $('#sLeft').textContent = fmtShort(left);
-  $('#sPct').textContent = pct.toFixed(1)+'%';
-  $('#sBar').style.width = pct+'%';
-  $('#sBar').className = 'pfill h-full rounded-full ' + (pct>=100?'bg-mint-500':pct>=60?'bg-lav-500':'bg-lav-300');
+// ---------- aggregate ----------
+function agg(){
+  const a={}; BUCKETS.forEach(b=>a[b]={t:0,l:0,basis:'value',at:0,n:0});
+  PARTIES.forEach(p=>BUCKETS.forEach(b=>{const c=p.buckets[b]; if(!c)return; a[b].basis=c.basis; a[b].t+=c.target; a[b].l+=c.live; if(c.target>0){a[b].n++; if(c.live>=c.target)a[b].at++;}}));
+  return a;
+}
+// ---------- MASTER ----------
+function renderMaster(){
+  const A=agg(), pc=pace(), ov=A['overall']||{t:0,l:0};
+  const ovpct=ov.t?ov.l/ov.t*100:0;
+  let cards=BUCKETS.map(b=>{
+    const x=A[b], pct=x.t?x.l/x.t*100:0, gap=Math.max(x.t-x.l,0);
+    const paceTgt=x.t*pc, behind=x.l<paceTgt;
+    const col=pct>=100?'bg-mint-500':pct>=60?'bg-lav-500':'bg-lav-300';
+    return `<div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 card">
+      <div class="flex items-center justify-between"><div class="text-[12px] font-medium">${esc(bucketLabel(b))}</div>
+        <span class="text-[10px] px-1.5 py-0.5 rounded-full ${behind&&pc<1?'bg-peach-300 text-ink':'bg-cream-dark text-ink-mute'}">${x.at}/${x.n} done</span></div>
+      <div class="flex items-end gap-1.5 mt-1"><div class="text-[20px] font-semibold hd">${pct.toFixed(0)}%</div>
+        <div class="text-[11px] text-ink-mute mb-1">${fmt(x.l,x.basis)} / ${fmt(x.t,x.basis)}</div></div>
+      <div class="h-1.5 rounded-full bg-cream-deep mt-1.5 overflow-hidden relative">
+        <div class="pfill h-full rounded-full ${col}" style="width:${Math.min(pct,100)}%"></div>
+        ${pc<1?`<div class="absolute top-[-2px] bottom-[-2px] w-[2px] bg-ink/40" style="left:${Math.min(pc*100,100)}%"></div>`:''}</div>
+      <div class="text-[11px] text-ink-mute mt-1.5">${gap>0?'gap '+fmt(gap,x.basis):'<span class="text-mint-500">target met</span>'}</div>
+    </div>`;
+  }).join('');
+  $('#v-master').innerHTML=`
+    <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5 sm:p-6 rise rise-1">
+      <div class="flex items-center justify-between flex-wrap gap-3">
+        <div><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Territory overall offtake</div>
+          <div class="flex items-end gap-3 mt-1"><div class="text-[30px] sm:text-[38px] font-semibold hd">${short(ov.l)}</div>
+            <div class="text-ink-mute text-[14px] mb-2">of ${short(ov.t)} · <span class="font-semibold text-ink">${ovpct.toFixed(1)}%</span></div></div></div>
+        <div class="text-right"><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Remaining to bill</div>
+          <div class="text-[24px] font-semibold hd mt-1">${short(Math.max(ov.t-ov.l,0))}</div></div>
+      </div>
+      <div class="h-2.5 rounded-full bg-cream-deep mt-3 overflow-hidden"><div class="pfill h-full rounded-full ${ovpct>=100?'bg-mint-500':'bg-lav-500'}" style="width:${Math.min(ovpct,100)}%"></div></div>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4 rise rise-2">${cards}</div>
+    <p class="text-[12px] text-ink-faint mt-3">Uncapped, gross incl GST. Over-achievers (like SHARMA) count fully into these totals. Pace marker reflects ${pc<1?('week target '+Math.round(pc*100)+'%'):'full month'}.</p>`;
 }
 
-// ===================== TABLE =====================
-function visibleParties(){
-  const q = norm($('#search').value);
-  const f = $('#filter').value;
-  let list = PARTIES.filter(p=>{
-    if(q){
-      const hay = norm(p.retailer_name+' '+p.marg_name+' '+p.rc_code);
-      if(!hay.includes(q)) return false;
-    }
-    const tgt=+p.target||0, ach=+p.achieved||0;
-    if(f==='gap')  return ach < tgt;
-    if(f==='done') return tgt>0 && ach>=tgt;
-    if(f==='zero') return ach<=0;
+// ---------- PARTIES ----------
+function visible(){
+  const q=norm($('#search').value), f=$('#pfilter').value, fb=$('#bucketSel').value, pc=pace();
+  let list=PARTIES.filter(p=>{
+    if(q){const h=norm((p.retailer_name||'')+' '+(p.rc_code||'')+' '+(p.route||'')); if(!h.includes(q))return false;}
+    const c=p.buckets[fb]; if(!c)return f==='all';
+    const pct=c.target?c.live/c.target:2, paceTgt=c.target*pc;
+    if(f==='behind')return c.target>0 && c.live<paceTgt;
+    if(f==='close')return pct>=0.7&&pct<1;
+    if(f==='done')return c.target>0&&c.live>=c.target;
+    if(f==='gap')return c.live<c.target;
     return true;
   });
-  const s = $('#sort').value;
-  const left = p => (+p.target||0)-(+p.achieved||0);
-  const pct  = p => (+p.target||0)? (+p.achieved||0)/(+p.target||0):2;
-  if(s==='left') list.sort((a,b)=>left(b)-left(a));
-  else if(s==='target') list.sort((a,b)=>(+b.target||0)-(+a.target||0));
-  else if(s==='pct') list.sort((a,b)=>pct(a)-pct(b));
+  const s=$('#psort').value, fb2=$('#bucketSel').value;
+  const C=p=>p.buckets[fb2]||{target:0,live:0};
+  if(s==='gap')list.sort((a,b)=>(C(b).target-C(b).live)-(C(a).target-C(a).live));
+  else if(s==='pct')list.sort((a,b)=>((C(a).target?C(a).live/C(a).target:2))-((C(b).target?C(b).live/C(b).target:2)));
+  else if(s==='target')list.sort((a,b)=>C(b).target-C(a).target);
   else list.sort((a,b)=>(a.retailer_name||'').localeCompare(b.retailer_name||''));
   return list;
 }
-function renderTable(){
-  const list = visibleParties();
-  const rows = $('#rows'); rows.innerHTML='';
-  $('#emptyState').classList.toggle('hidden', list.length>0);
-  const frag = document.createDocumentFragment();
+function renderParties(){
+  const list=visible(), pc=pace(), wrap=$('#partyList'); wrap.innerHTML='';
+  $('#partyEmpty').classList.toggle('hidden',list.length>0);
+  const frag=document.createDocumentFragment();
   for(const p of list){
-    const tgt=+p.target||0, ach=+p.achieved||0, left=tgt-ach;
-    const pct = tgt? Math.min(100, ach/tgt*100):0;
-    const barCol = pct>=100?'bg-mint-500':pct>=60?'bg-lav-500':pct>0?'bg-lav-300':'bg-cream-deep';
-    const leftCol = left<=0?'text-mint-500':left>tgt*0.7?'text-peach-500':'text-ink';
-    const tr=document.createElement('tr');
-    tr.className='border-b border-cream-dark/70 last:border-0 group';
-    tr.innerHTML = `
-      <td class="sticky-name px-4 py-2.5 align-top">
-        <input class="cell-in font-medium text-[13.5px]" value="${esc(p.retailer_name)}" data-f="retailer_name" data-id="${p.id}" />
-        <div class="flex items-center gap-2 mt-0.5 pl-2">
-          <span class="font-mono text-[10.5px] text-ink-faint shrink-0">${esc(p.rc_code)}</span>
-        </div>
-        <input class="cell-in text-[11.5px] text-ink-mute mt-0.5" value="${esc(p.marg_name)}" data-f="marg_name" data-id="${p.id}" placeholder="Marg name…" title="Marg name (used for matching)" autocomplete="off" autocorrect="off" spellcheck="false" />
-      </td>
-      <td class="px-3 py-2.5 text-right align-top">
-        <input class="cell-in text-right font-mono text-[13px]" value="${tgt}" data-f="target" data-id="${p.id}" inputmode="numeric" />
-      </td>
-      <td class="px-3 py-2.5 text-right align-top">
-        <input class="cell-in text-right font-mono text-[13px] text-lav-700" value="${ach}" data-f="achieved" data-id="${p.id}" inputmode="numeric" />
-      </td>
-      <td class="px-3 py-2.5 text-right align-top font-mono text-[13px] ${leftCol}">${left<=0?'done':fmtShort(left)}</td>
-      <td class="px-4 py-2.5 align-top">
-        <div class="flex items-center gap-2">
-          <div class="flex-1 h-1.5 rounded-full bg-cream-deep overflow-hidden">
-            <div class="pfill h-full rounded-full ${barCol}" style="width:${pct}%"></div>
+    const ov=p.buckets['overall']||{target:0,live:0,basis:'value'};
+    const ovpct=ov.target?ov.live/ov.target*100:0;
+    const chips=BUCKETS.filter(b=>b!=='overall').map(b=>{
+      const c=p.buckets[b]||{target:0,live:0,basis:'qty'};
+      const pct=c.target?c.live/c.target*100:0;
+      const col=c.target<=0?'bg-cream-dark text-ink-faint':pct>=100?'bg-mint-300 text-ink':pct>=60?'bg-lav-100 text-lav-700':pct>0?'bg-cream-deep text-ink-mute':'bg-peach-100 text-ink';
+      return `<span class="chip ${col} rounded-md px-1.5 py-0.5 text-[10.5px]" title="${esc(bucketLabel(b))}: ${fmt(c.live,c.basis)}/${fmt(c.target,c.basis)}">${bucketShort(b)} ${c.target>0?pct.toFixed(0)+'%':'–'}</span>`;
+    }).join('');
+    const d=document.createElement('details');
+    d.className='bg-white rounded-2xl border border-cream-deep/70 shadow-card overflow-hidden';
+    d.innerHTML=`
+      <summary class="p-4 cursor-pointer hover:bg-cream/40 transition">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="min-w-0">
+            <div class="font-medium text-[14px] truncate">${esc(p.retailer_name)}</div>
+            <div class="font-mono text-[10.5px] text-ink-faint">${esc(p.rc_code)}${p.route?' · '+esc(p.route):''}${p.rc_type?' · '+esc(p.rc_type):''}</div>
           </div>
-          <span class="text-[11px] font-mono text-ink-mute w-9 text-right">${pct.toFixed(0)}%</span>
+          <div class="flex items-center gap-3">
+            <div class="text-right"><div class="text-[15px] font-semibold hd">${ovpct.toFixed(0)}%</div>
+              <div class="text-[10.5px] text-ink-mute">${short(ov.live)}/${short(ov.target)}</div></div>
+            <div class="w-20 h-1.5 rounded-full bg-cream-deep overflow-hidden"><div class="pfill h-full rounded-full ${ovpct>=100?'bg-mint-500':ovpct>=60?'bg-lav-500':'bg-lav-300'}" style="width:${Math.min(ovpct,100)}%"></div></div>
+          </div>
         </div>
-      </td>
-      <td class="px-2 py-2.5 align-top text-center">
-        <button data-del="${p.id}" class="text-ink-faint hover:text-peach-500 transition text-[15px] leading-none opacity-0 group-hover:opacity-100" title="Delete">×</button>
-      </td>`;
-    frag.appendChild(tr);
+        <div class="flex flex-wrap gap-1 mt-2">${chips}</div>
+      </summary>
+      <div class="px-4 pb-4 pt-1 border-t border-cream-dark/60">${partyDetail(p,pc)}</div>`;
+    frag.appendChild(d);
   }
-  rows.appendChild(frag);
-  $('#rowCount').textContent = `${list.length} of ${PARTIES.length} parties`;
+  wrap.appendChild(frag);
 }
-const esc = s => String(s==null?'':s).replace(/"/g,'&quot;').replace(/</g,'&lt;');
-
-function renderMeta(){
-  const t = META.last_tracker_upload, m = META.last_marg_upload;
-  let parts=[];
-  if(t) parts.push(`tracker: ${t.rows} rows · ${new Date(t.ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}`);
-  if(m) parts.push(`marg: ${m.matched}/${m.total} matched · ${new Date(m.ts).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}`);
-  $('#metaLine').textContent = parts.join('  ·  ');
-  $('#trackerMeta').textContent = t? `Last: ${t.filename} · ${t.rows} rows · ${new Date(t.ts).toLocaleString('en-IN')}` : 'No tracker uploaded yet.';
-  $('#margMeta').textContent = m? `Last: ${m.filename} · matched ${m.matched}/${m.total} · ${fmtShort(m.total_amount)} · ${new Date(m.ts).toLocaleString('en-IN')}` : 'No Marg export uploaded yet.';
+function partyDetail(p,pc){
+  let rows=BUCKETS.map(b=>{
+    const c=p.buckets[b]||{target:0,live:0,basis:(b.startsWith('pg:')?'qty':'value'),hero:0};
+    const pct=c.target?c.live/c.target*100:0, gap=c.target-c.live, paceTgt=c.target*pc;
+    const behind=c.target>0&&c.live<paceTgt;
+    return `<tr class="border-b border-cream-dark/50 last:border-0">
+      <td class="py-1.5 pr-2 text-[12px]">${esc(bucketLabel(b))}</td>
+      <td class="py-1.5 px-1 text-right"><input class="cell-in text-right font-mono text-[12px]" value="${Math.round(c.target)}" data-rc="${esc(p.rc_code)}" data-b="${esc(b)}" data-f="target" inputmode="numeric"/></td>
+      <td class="py-1.5 px-1 text-right"><input class="cell-in text-right font-mono text-[12px] text-lav-700" value="${Math.round(c.live)}" data-rc="${esc(p.rc_code)}" data-b="${esc(b)}" data-f="achieved_live" inputmode="numeric"/></td>
+      <td class="py-1.5 px-1 text-right font-mono text-[12px] ${gap<=0?'text-mint-500':behind?'text-peach-500':'text-ink-mute'}">${gap<=0?'✓':fmt(gap,c.basis)}</td>
+      <td class="py-1.5 pl-1 text-right font-mono text-[12px] ${pct>=100?'text-mint-500':''}">${c.target>0?pct.toFixed(0)+'%':'–'}</td>
+    </tr>`;
+  }).join('');
+  // order recommendation
+  let recs=BUCKETS.filter(b=>b!=='overall').map(b=>{
+    const c=p.buckets[b]; if(!c||c.target<=0||c.live>=c.target)return '';
+    const gap=c.target-c.live, parts=(BUCKETPARTS[b]||[]);
+    const list=parts.slice(0,10).map(pn=>`<span class="font-mono text-[10.5px] bg-cream-dark rounded px-1.5 py-0.5">${esc(pn)}</span>`).join(' ');
+    return `<div class="mt-2"><span class="text-[12px] font-medium">${esc(bucketLabel(b))}:</span>
+      <span class="text-[12px] text-peach-500 font-medium">need ${fmt(gap,c.basis)} more</span>
+      ${parts.length?`<div class="mt-1 flex flex-wrap gap-1">${list}${parts.length>10?`<span class="text-[10.5px] text-ink-faint">+${parts.length-10} more parts</span>`:''}</div>`:''}</div>`;
+  }).filter(Boolean).join('');
+  return `<div class="grid sm:grid-cols-2 gap-4 mt-2">
+    <div><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium mb-1">Targets vs live <span class="normal-case tracking-normal">(editable)</span></div>
+      <table class="w-full text-[12px]"><thead><tr class="text-ink-faint text-[10px] uppercase tracking-wider">
+        <th class="text-left font-medium">Bucket</th><th class="text-right font-medium">Target</th><th class="text-right font-medium">Live</th><th class="text-right font-medium">Gap</th><th class="text-right font-medium">%</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    <div><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium mb-1">Order to close gaps</div>
+      ${recs||'<div class="text-[12px] text-mint-500">All targets met 🎯</div>'}</div>
+  </div>`;
 }
-
-// ===================== INLINE EDIT =====================
-$('#rows').addEventListener('change', async e=>{
-  const el=e.target; if(!el.dataset.f) return;
-  const id=el.dataset.id, f=el.dataset.f;
-  let val = el.value;
-  if(f==='target'||f==='achieved'){ val = parseAmount(val); el.value = val; }
-  const p = PARTIES.find(x=>x.id===id); if(!p) return;
-  const prev = p[f]; p[f]=val;
-  if(f==='target'||f==='achieved'){ renderStats(); renderTable(); }
-  const {error} = await sb.from('hero_parties').update({[f]:val}).eq('id',id);
-  if(error){ p[f]=prev; toast('Save failed', true); renderTable(); }
-  else toast('Saved');
+// inline edit
+$('#partyList').addEventListener('change',async e=>{
+  const el=e.target; if(!el.dataset.f)return;
+  const rc=el.dataset.rc,b=el.dataset.b,f=el.dataset.f,val=Math.round(amt(el.value));el.value=val;
+  const p=PARTIES.find(x=>x.rc_code===rc); if(p&&p.buckets[b]){p.buckets[b][f==='target'?'target':'live']=val;}
+  const {error}=await sb.from('hero_party_targets').update({[f]:val}).eq('period',PERIOD).eq('rc_code',rc).eq('bucket',b);
+  if(error)toast('Save failed',true); else {toast('Saved');renderMaster();}
 });
-$('#rows').addEventListener('click', async e=>{
-  const id=e.target.dataset.del; if(!id) return;
-  const p=PARTIES.find(x=>x.id===id);
-  openModal(`
-    <h3 class="text-[16px] font-semibold">Delete party?</h3>
-    <p class="text-ink-mute text-[13px] mt-2">${esc(p.retailer_name)} <span class="font-mono text-[11px]">(${esc(p.rc_code)})</span> will be removed.</p>
-    <div class="flex gap-2 mt-5">
-      <button id="okDel" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium hover:bg-ink-soft flex-1">Delete</button>
-      <button data-close class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Cancel</button>
-    </div>`);
-  $('#okDel').onclick = async ()=>{
-    const {error}=await sb.from('hero_parties').delete().eq('id',id);
-    if(error){ toast('Delete failed',true); return; }
-    PARTIES=PARTIES.filter(x=>x.id!==id); closeModal(); renderStats(); renderTable();
-    toast('Deleted');
-  };
-});
+['#search','#pfilter','#psort','#bucketSel'].forEach(s=>$(s).addEventListener('input',renderParties));
+$('#bucketSel').addEventListener('change',renderParties);
+$('#weekSel').addEventListener('change',()=>{renderMaster();renderParties();});
+$('#periodSel').addEventListener('change',e=>{PERIOD=e.target.value;load();});
 
-$('#search').addEventListener('input', renderTable);
-$('#filter').addEventListener('change', renderTable);
-$('#sort').addEventListener('change', renderTable);
+// ---------- NAV ----------
+function setView(v){view=v;['master','parties','imports'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));
+  $$('.navpill').forEach(b=>{const on=b.dataset.view===v;b.className='navpill px-4 py-2 rounded-full text-[13px] font-medium transition '+(on?'bg-ink text-cream':'text-ink-mute hover:bg-cream-dark/40');});}
+$$('.navpill').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+function openModal(h){$('#modalBody').innerHTML=h;$('#modal').classList.remove('hidden');}
+function closeModal(){$('#modal').classList.add('hidden');}
+$('#modal').addEventListener('click',e=>{if(e.target.hasAttribute('data-close'))closeModal();});
 
-// ===================== ADD PARTY =====================
-$('#addBtn').onclick = ()=>{
-  openModal(`
-    <h3 class="text-[16px] font-semibold">Add party</h3>
-    <div class="space-y-3 mt-4">
-      <div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">RC Code</label>
-        <input id="aRc" class="w-full mt-1 px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white focus:border-ink-soft text-[14px] font-mono" placeholder="500109-02-RC-…" autocomplete="off"/></div>
-      <div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Retailer name</label>
-        <input id="aRet" class="w-full mt-1 px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white focus:border-ink-soft text-[14px]" autocomplete="off"/></div>
-      <div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Marg name</label>
-        <input id="aMarg" class="w-full mt-1 px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white focus:border-ink-soft text-[14px]" autocomplete="off" placeholder="(defaults to retailer name)"/></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Target</label>
-          <input id="aTgt" class="w-full mt-1 px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white text-[14px] font-mono" inputmode="numeric" value="0"/></div>
-        <div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Achieved</label>
-          <input id="aAch" class="w-full mt-1 px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white text-[14px] font-mono" inputmode="numeric" value="0"/></div>
-      </div>
-    </div>
-    <div class="flex gap-2 mt-5">
-      <button id="okAdd" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium hover:bg-ink-soft flex-1">Add party</button>
-      <button data-close class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Cancel</button>
-    </div>`);
-  $('#okAdd').onclick = async ()=>{
-    const rc=$('#aRc').value.trim(); if(!rc){ toast('RC code required',true); return; }
-    const row={ rc_code:rc, retailer_name:$('#aRet').value.trim(),
-      marg_name:($('#aMarg').value.trim()||$('#aRet').value.trim()),
-      target:parseAmount($('#aTgt').value), achieved:parseAmount($('#aAch').value) };
-    const {data,error}=await sb.from('hero_parties').insert(row).select().single();
-    if(error){ toast(error.code==='23505'?'RC code already exists':'Add failed',true); return; }
-    PARTIES.push(data); closeModal(); renderStats(); renderTable(); toast('Party added');
-  };
-};
+// ---------- file read ----------
+function readWB(file,cb){const r=new FileReader();r.onload=e=>cb(XLSX.read(e.target.result,{type:'array'}));r.readAsArrayBuffer(file);}
+function grid(wb,sheet){return XLSX.utils.sheet_to_json(wb.Sheets[sheet||wb.SheetNames[0]],{header:1,defval:'',raw:true});}
+function findHeader(rows,keys){for(let i=0;i<Math.min(rows.length,15);i++){const r=rows[i].map(c=>String(c).toLowerCase());if(keys.every(k=>r.some(h=>h.includes(k))))return i;}return -1;}
+function colIdx(hdr,keys){for(let i=0;i<hdr.length;i++){const h=String(hdr[i]).toLowerCase().trim();if(keys.some(k=>h===k||h.includes(k)))return i;}return -1;}
 
-// ===================== EXPORT =====================
-$('#exportBtn').onclick = ()=>{
-  const data = visibleParties().map(p=>({
-    'RC Code':p.rc_code,'Retailer Name':p.retailer_name,'Marg Name':p.marg_name,
-    'Target':+p.target||0,'Achieved':+p.achieved||0,'Remaining':Math.max((+p.target||0)-(+p.achieved||0),0),
-    'Progress %': (+p.target? ((+p.achieved||0)/(+p.target)*100):0).toFixed(1)
-  }));
-  const ws=XLSX.utils.json_to_sheet(data); const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Hero Tracker');
-  XLSX.writeFile(wb, 'hero-tracker-'+new Date().toISOString().slice(0,10)+'.xlsx');
-};
-
-// ===================== MODAL / NAV =====================
-function openModal(html){ $('#modalBody').innerHTML=html; $('#modal').classList.remove('hidden'); }
-function closeModal(){ $('#modal').classList.add('hidden'); }
-$('#modal').addEventListener('click', e=>{ if(e.target.hasAttribute('data-close')) closeModal(); });
-function setView(v){
-  view=v;
-  $('#view-targets').classList.toggle('hidden', v!=='targets');
-  $('#view-imports').classList.toggle('hidden', v!=='imports');
-  $('#targetsTools').classList.toggle('hidden', v!=='targets');
-  $$('.navpill').forEach(b=>{
-    const on=b.dataset.view===v;
-    b.className='navpill px-4 py-2 rounded-full text-[13px] font-medium transition '+(on?'bg-ink text-cream':'text-ink-mute hover:bg-cream-dark/40');
-  });
-}
-$$('.navpill').forEach(b=> b.onclick=()=>setView(b.dataset.view));
-
-// ===================== TRACKER IMPORT =====================
-function readSheet(file, cb){
-  const r=new FileReader();
-  r.onload=e=>{
-    const wb=XLSX.read(e.target.result,{type:'array'});
-    cb(wb);
-  };
-  r.readAsArrayBuffer(file);
-}
-function sheetToRows(wb, sheetName){
-  const ws=wb.Sheets[sheetName||wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:true});
-}
-function guessCol(headers, keys){
-  for(let i=0;i<headers.length;i++){
-    const h=String(headers[i]||'').toLowerCase();
-    if(keys.some(k=>h.includes(k))) return i;
-  }
-  return -1;
-}
-const trackerInput=$('#trackerFile'); const trackerDrop=$('#trackerDrop');
-trackerDrop.onclick=()=>trackerInput.click();
-;['dragover','dragleave','drop'].forEach(ev=>trackerDrop.addEventListener(ev,e=>{e.preventDefault();}));
-trackerDrop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handleTracker(e.dataTransfer.files[0]); });
-trackerInput.onchange=e=>{ if(e.target.files[0]) handleTracker(e.target.files[0]); };
-
-let trackerCtx=null;
-function handleTracker(file){
-  readSheet(file, wb=>{
-    trackerCtx={file, wb, sheet:wb.SheetNames[0]};
-    const rows=sheetToRows(wb, trackerCtx.sheet);
-    const hdr=rows[0]||[];
-    const g={ rc:guessCol(hdr,['rc code','rc','code']), ret:guessCol(hdr,['retailer','name','party']),
-      tgt:guessCol(hdr,['overall','target','amount']), marg:guessCol(hdr,['marg']) };
-    const opts=hdr.map((h,i)=>`<option value="${i}">${esc(h||('Col '+(i+1)))}</option>`).join('');
-    const sel=(label,key,val)=>`<div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">${label}</label>
-      <select data-k="${key}" class="w-full mt-1 px-3 py-2 rounded-lg border border-cream-deep bg-cream/40 text-[13px]">
-      <option value="-1">— none —</option>${opts}</select></div>`;
-    $('#trackerMap').innerHTML = `
-      <div class="text-[12px] text-ink-mute">${file.name} · ${rows.length-1} data rows. Confirm columns:</div>
-      <div class="grid grid-cols-2 gap-3">
-        ${sel('RC Code','rc')}${sel('Retailer name','ret')}${sel('Target','tgt')}${sel('Marg name','marg')}
-      </div>
-      <button id="trackerApply" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium hover:bg-ink-soft w-full mt-1">Sync tracker</button>`;
-    $('#trackerMap').classList.remove('hidden');
-    const setSel=(k,v)=>{ const s=$(`#trackerMap select[data-k="${k}"]`); if(s&&v>=0) s.value=v; };
-    setSel('rc',g.rc); setSel('ret',g.ret); setSel('tgt',g.tgt); setSel('marg',g.marg);
-    $('#trackerApply').onclick=()=>applyTracker(rows);
-  });
-}
-async function applyTracker(rows){
-  const get=k=>+$(`#trackerMap select[data-k="${k}"]`).value;
-  const ci={rc:get('rc'),ret:get('ret'),tgt:get('tgt'),marg:get('marg')};
-  if(ci.rc<0){ toast('RC Code column required',true); return; }
-  const out=[];
-  for(let i=1;i<rows.length;i++){
-    const r=rows[i]; const rc=String(r[ci.rc]||'').replace(/\u00a0/g,' ').trim();
-    if(!rc) continue;
-    const ret=ci.ret>=0?String(r[ci.ret]||'').trim():'';
-    out.push({ rc_code:rc, retailer_name:ret,
-      marg_name: ci.marg>=0? (String(r[ci.marg]||'').trim()||ret) : ret,
-      target: ci.tgt>=0? parseAmount(r[ci.tgt]) : 0 });
-  }
-  if(!out.length){ toast('No rows found',true); return; }
-  $('#trackerApply').textContent='Syncing…'; $('#trackerApply').disabled=true;
-  // upsert by rc_code (keeps achieved untouched)
-  const {error}=await sb.from('hero_parties').upsert(out,{onConflict:'rc_code',ignoreDuplicates:false});
-  if(error){ toast('Sync failed: '+error.message,true); $('#trackerApply').textContent='Sync tracker'; $('#trackerApply').disabled=false; return; }
-  await saveMeta('last_tracker_upload',{filename:trackerCtx.file.name,rows:out.length,ts:Date.now()});
-  await load(); setView('targets');
-  toast(`Synced ${out.length} parties`);
-}
-
-// ===================== MARG IMPORT =====================
-const margInput=$('#margFile'); const margDrop=$('#margDrop');
-margDrop.onclick=()=>margInput.click();
-;['dragover','dragleave','drop'].forEach(ev=>margDrop.addEventListener(ev,e=>{e.preventDefault();}));
-margDrop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handleMarg(e.dataTransfer.files[0]); });
-margInput.onchange=e=>{ if(e.target.files[0]) handleMarg(e.target.files[0]); };
-
+// ---------- MARG ----------
+$('#margDrop').onclick=()=>$('#margFile').click();
+$('#margFile').onchange=e=>{if(e.target.files[0])handleMarg(e.target.files[0]);};
 let margCtx=null;
 function handleMarg(file){
-  readSheet(file, wb=>{
-    margCtx={file, wb, sheet:wb.SheetNames[0]};
-    const sheetOpts=wb.SheetNames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
-    $('#margMap').innerHTML=`
-      <div class="text-[12px] text-ink-mute">${file.name}. Confirm sheet & columns:</div>
-      <div class="grid grid-cols-3 gap-3">
-        <div><label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Sheet</label>
-          <select id="mSheet" class="w-full mt-1 px-3 py-2 rounded-lg border border-cream-deep bg-cream/40 text-[13px]">${sheetOpts}</select></div>
-        <div id="mNameWrap"></div><div id="mAmtWrap"></div>
-      </div>
-      <button id="margMatch" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium hover:bg-ink-soft w-full mt-1">Match to parties</button>`;
-    $('#margMap').classList.remove('hidden');
-    const buildCols=()=>{
-      const rows=sheetToRows(wb,$('#mSheet').value);
-      // find a header row: first row with >1 non-empty text cells
-      let hi=0; for(let i=0;i<Math.min(rows.length,8);i++){ const nonEmpty=rows[i].filter(c=>String(c).trim()).length; if(nonEmpty>=2){hi=i;break;} }
-      margCtx.headerIdx=hi; margCtx.rows=rows;
-      const hdr=rows[hi]||[];
-      const opts=hdr.map((h,i)=>`<option value="${i}">${esc(h||('Col '+(i+1)))}</option>`).join('');
-      const nameG=guessCol(hdr,['party','name','account','customer','retailer','ledger']);
-      const amtG=guessCol(hdr,['amount','sale','net','value','taxable','total','qty value','amt']);
-      $('#mNameWrap').innerHTML=`<label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Party name col</label>
-        <select id="mName" class="w-full mt-1 px-3 py-2 rounded-lg border border-cream-deep bg-cream/40 text-[13px]">${opts}</select>`;
-      $('#mAmtWrap').innerHTML=`<label class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Amount col</label>
-        <select id="mAmt" class="w-full mt-1 px-3 py-2 rounded-lg border border-cream-deep bg-cream/40 text-[13px]">${opts}</select>`;
-      if(nameG>=0)$('#mName').value=nameG; if(amtG>=0)$('#mAmt').value=amtG;
-    };
-    buildCols();
-    $('#mSheet').onchange=buildCols;
-    $('#margMatch').onclick=runMatch;
+  readWB(file,wb=>{
+    // pick the sheet with most rows
+    let sheet=wb.SheetNames[0],best=0;
+    wb.SheetNames.forEach(n=>{const c=XLSX.utils.decode_range(wb.Sheets[n]['!ref']||'A1').e.r;if(c>best){best=c;sheet=n;}});
+    const rows=grid(wb,sheet);
+    const hi=findHeader(rows,['party','part']); if(hi<0){toast('Could not find Party/Part columns',true);return;}
+    const hdr=rows[hi];
+    const ci={party:colIdx(hdr,['party name','party']),part:colIdx(hdr,['part no','part no.','part number']),
+      qty:colIdx(hdr,['qty','quantity']),amount:colIdx(hdr,['amount']),tax:colIdx(hdr,['tax amount','tax']),
+      type:colIdx(hdr,['type']),bill:colIdx(hdr,['bill no','bill no#','voucher'])};
+    // parse
+    const lines=[]; const seenP={};
+    for(let i=hi+1;i<rows.length;i++){
+      const r=rows[i]; const bill=String(r[ci.bill]||'').trim();
+      const party=String(r[ci.party]||'').replace(/\u00a0/g,' ').trim();
+      const part=String(r[ci.part]||'').trim();
+      if(!party||!part||bill.toUpperCase()==='TOTAL')continue;
+      const sign=String(r[ci.type]||'').trim().toUpperCase().includes('RE')?-1:1;
+      const gross=(amt(r[ci.amount])+(ci.tax>=0?amt(r[ci.tax]):0))*sign;
+      lines.push({party,part,qty:amt(r[ci.qty])*sign,val:gross});
+      seenP[party]=(seenP[party]||0)+gross;
+    }
+    margCtx={file,lines,seenP};
+    resolveMarg();
   });
 }
-
-let matchResult=null;
-function runMatch(){
-  const rows=margCtx.rows, hi=margCtx.headerIdx;
-  const nameCol=+$('#mName').value, amtCol=+$('#mAmt').value;
-  // aggregate export rows by party name
-  const agg={};
-  for(let i=hi+1;i<rows.length;i++){
-    const nm=String(rows[i][nameCol]||'').replace(/\u00a0/g,' ').trim();
-    if(!nm) continue;
-    const amt=parseAmount(rows[i][amtCol]);
-    agg[nm]=(agg[nm]||0)+amt;
-  }
-  const exportRows=Object.entries(agg).map(([name,amount])=>({name,amount}));
-  // match each export row to a party
-  const aliasMap={}; ALIASES.forEach(a=>{ if(a.rc_code) aliasMap[norm(a.marg_name)]=a.rc_code; });
-  const byNorm={}; PARTIES.forEach(p=>{ byNorm[norm(p.marg_name)]=p; if(!byNorm[norm(p.retailer_name)]) byNorm[norm(p.retailer_name)]=p; });
-  const matched=[]; const unmatched=[];
-  for(const er of exportRows){
-    let p=byNorm[norm(er.name)];
-    let how='exact';
-    if(!p && aliasMap[norm(er.name)]){ p=PARTIES.find(x=>x.rc_code===aliasMap[norm(er.name)]); how='alias'; }
-    if(!p){ // fuzzy
-      let best=null,bs=0;
-      for(const cand of PARTIES){ const s=Math.max(dice(er.name,cand.marg_name),dice(er.name,cand.retailer_name)); if(s>bs){bs=s;best=cand;} }
-      if(best && bs>=0.6){ p=best; how='fuzzy '+(bs*100|0)+'%'; }
-    }
-    if(p) matched.push({...er, party:p, how});
-    else unmatched.push({...er, assignTo:''});
-  }
-  // sum matched by party
-  const sums={}; matched.forEach(m=>{ sums[m.party.rc_code]=(sums[m.party.rc_code]||0)+m.amount; });
-  matchResult={exportRows, matched, unmatched, sums, totalAmount:exportRows.reduce((s,r)=>s+r.amount,0)};
-  renderMargPanel();
-  setView('imports');
-  $('#margPanel').scrollIntoView({behavior:'smooth',block:'start'});
+function resolveParty(name){
+  const n=norm(name); if(ALIASES[n])return ALIASES[n];
+  for(const p of PARTIES){ if(norm(p.retailer_name)===n)return p.rc_code; }
+  let best=null,bs=0;
+  for(const p of PARTIES){const s=dice(name,p.retailer_name);if(s>bs){bs=s;best=p.rc_code;}}
+  return bs>=0.72?best:null;
 }
-
-function renderMargPanel(){
-  const r=matchResult;
-  const matchedPartyCount=Object.keys(r.sums).length;
-  const opts = PARTIES.slice().sort((a,b)=>a.retailer_name.localeCompare(b.retailer_name))
-    .map(p=>`<option value="${p.rc_code}">${esc(p.retailer_name)} (${esc(p.rc_code)})</option>`).join('');
-  const unmatchedRows = r.unmatched.map((u,i)=>`
-    <tr class="border-b border-cream-dark/70">
-      <td class="px-3 py-2 text-[12.5px]">${esc(u.name)}</td>
-      <td class="px-3 py-2 text-right font-mono text-[12.5px]">${fmtFull(u.amount)}</td>
-      <td class="px-3 py-2">
-        <select data-uidx="${i}" class="umap w-full px-2.5 py-1.5 rounded-lg border border-cream-deep bg-cream/40 text-[12px]">
-          <option value="">— skip —</option>${opts}
-        </select>
-      </td>
-    </tr>`).join('');
-  const matchedPreview = matched_preview();
-  $('#margPanel').innerHTML=`
-    <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5 sm:p-6 rise rise-1">
-      <div class="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h3 class="text-[17px] font-semibold">Match preview <span class="display-serif font-normal text-ink-mute"> review</span></h3>
-          <p class="text-[12.5px] text-ink-mute mt-1">${margCtx.file.name} · ${r.exportRows.length} export rows · ${fmtShort(r.totalAmount)} total</p>
-        </div>
-        <div class="flex gap-2 text-[11px]">
-          <span class="px-2.5 py-1 bg-mint-300 rounded-full">${r.matched.length} matched</span>
-          <span class="px-2.5 py-1 ${r.unmatched.length?'bg-peach-300':'bg-cream-dark'} rounded-full">${r.unmatched.length} unmatched</span>
-        </div>
+function resolveMarg(){
+  const names=Object.keys(margCtx.seenP);
+  const map={}; names.forEach(n=>map[n]=resolveParty(n));
+  margCtx.map=map;
+  const unmatched=names.filter(n=>!map[n]).sort((a,b)=>margCtx.seenP[b]-margCtx.seenP[a]);
+  const matched=names.length-unmatched.length;
+  const total=Object.values(margCtx.seenP).reduce((s,v)=>s+v,0);
+  $('#margMeta').textContent=`${margCtx.file.name} · ${margCtx.lines.length} lines · ${short(total)}`;
+  const opts=PARTIES.slice().sort((a,b)=>a.retailer_name.localeCompare(b.retailer_name)).map(p=>`<option value="${esc(p.rc_code)}">${esc(p.retailer_name)} (${esc(p.rc_code)})</option>`).join('');
+  const urows=unmatched.map((nm,i)=>`<tr class="border-b border-cream-dark/60">
+    <td class="px-3 py-2 text-[12.5px]">${esc(nm)}</td><td class="px-3 py-2 text-right font-mono text-[12px]">${inr(margCtx.seenP[nm])}</td>
+    <td class="px-3 py-2"><select data-um="${i}" class="umap w-full px-2 py-1.5 rounded-lg border border-cream-deep bg-cream/40 text-[12px]"><option value="">— ignore (non-scheme) —</option>${opts}</select></td></tr>`).join('');
+  setView('imports');
+  $('#importPanel').innerHTML=`
+    <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5 rise rise-1">
+      <div class="flex items-center justify-between flex-wrap gap-2">
+        <h3 class="text-[16px] font-semibold">Marg match <span class="display-serif font-normal text-ink-mute">preview</span></h3>
+        <div class="flex gap-2 text-[11px]"><span class="px-2.5 py-1 bg-mint-300 rounded-full">${matched} matched</span><span class="px-2.5 py-1 ${unmatched.length?'bg-peach-300':'bg-cream-dark'} rounded-full">${unmatched.length} to map</span></div>
       </div>
-
-      <div class="mt-4 flex items-center gap-2 text-[12.5px] text-ink-mute">
-        <label class="inline-flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" id="zeroRest" checked class="accent-lav-500 w-4 h-4"/>
-          Set scheme parties not in this export to ₹0 (full-period export)
-        </label>
-      </div>
-
-      ${r.unmatched.length?`
-      <div class="mt-4">
-        <div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium mb-2">Unmatched export rows — map them (saved for next time)</div>
-        <div class="scrollwrap overflow-x-auto border border-cream-deep rounded-xl">
-          <table class="w-full text-[13px] min-w-[520px]">
-            <thead><tr class="text-ink-mute text-[11px] uppercase tracking-wider border-b border-cream-deep">
-              <th class="text-left font-medium px-3 py-2">Marg name in export</th>
-              <th class="text-right font-medium px-3 py-2 w-[120px]">Amount</th>
-              <th class="text-left font-medium px-3 py-2 w-[260px]">Assign to party</th>
-            </tr></thead>
-            <tbody>${unmatchedRows}</tbody>
-          </table>
-        </div>
-      </div>`:''}
-
-      <details class="mt-4 group">
-        <summary class="cursor-pointer text-[12.5px] text-ink-mute select-none">Show ${r.matched.length} matched rows</summary>
-        <div class="scrollwrap overflow-x-auto border border-cream-deep rounded-xl mt-2 max-h-72 overflow-y-auto">
-          <table class="w-full text-[12.5px] min-w-[560px]">
-            <thead class="sticky top-0 bg-white"><tr class="text-ink-mute text-[11px] uppercase tracking-wider border-b border-cream-deep">
-              <th class="text-left font-medium px-3 py-2">Export name</th>
-              <th class="text-left font-medium px-3 py-2">→ Party</th>
-              <th class="text-left font-medium px-3 py-2 w-[90px]">Match</th>
-              <th class="text-right font-medium px-3 py-2 w-[110px]">Amount</th>
-            </tr></thead>
-            <tbody>${matchedPreview}</tbody>
-          </table>
-        </div>
-      </details>
-
-      <div class="flex gap-2 mt-5">
-        <button id="applyMarg" class="bg-ink text-cream rounded-lg px-5 py-2.5 text-[13px] font-medium hover:bg-ink-soft">Apply achievement to ${matchedPartyCount} parties</button>
-        <button id="cancelMarg" class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium">Cancel</button>
-      </div>
+      <label class="mt-3 flex items-center gap-2 text-[12.5px] text-ink-mute cursor-pointer"><input type="checkbox" id="zeroRest" checked class="accent-lav-500 w-4 h-4"/>Set scheme parties absent from this export to 0 (full-month export)</label>
+      ${unmatched.length?`<div class="mt-3"><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium mb-1">Unmatched Marg names — map once (saved as alias)</div>
+        <div class="scrollwrap overflow-auto border border-cream-deep rounded-xl max-h-80"><table class="w-full text-[13px] min-w-[480px]">
+        <thead class="sticky top-0 bg-white"><tr class="text-ink-mute text-[11px] uppercase tracking-wider border-b border-cream-deep"><th class="text-left font-medium px-3 py-2">Marg name</th><th class="text-right font-medium px-3 py-2">Value</th><th class="text-left font-medium px-3 py-2 w-[260px]">Assign</th></tr></thead>
+        <tbody>${urows}</tbody></table></div></div>`:'<p class="text-[12.5px] text-mint-500 mt-3">Every name matched.</p>'}
+      <div class="flex gap-2 mt-4"><button id="applyMarg" class="bg-ink text-cream rounded-lg px-5 py-2.5 text-[13px] font-medium hover:bg-ink-soft">Apply to achievement</button>
+        <button id="cancelMarg" class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium">Cancel</button></div>
     </div>`;
-  $('#margPanel').classList.remove('hidden');
-  $('#cancelMarg').onclick=()=>{ $('#margPanel').classList.add('hidden'); matchResult=null; };
+  $('#cancelMarg').onclick=()=>{$('#importPanel').innerHTML='';margCtx=null;};
   $('#applyMarg').onclick=applyMarg;
 }
-function matched_preview(){
-  return matchResult.matched.slice().sort((a,b)=>b.amount-a.amount).map(m=>{
-    const col=m.how.startsWith('fuzzy')?'text-peach-500':m.how==='alias'?'text-lav-700':'text-ink-mute';
-    return `<tr class="border-b border-cream-dark/70">
-      <td class="px-3 py-1.5">${esc(m.name)}</td>
-      <td class="px-3 py-1.5 text-ink-mute">${esc(m.party.retailer_name)}</td>
-      <td class="px-3 py-1.5 ${col}">${esc(m.how)}</td>
-      <td class="px-3 py-1.5 text-right font-mono">${fmtFull(m.amount)}</td></tr>`;
-  }).join('');
-}
-
 async function applyMarg(){
-  const r=matchResult;
-  // capture manual assignments from unmatched dropdowns
-  const newAliases=[];
-  $$('.umap').forEach(sel=>{
-    const rc=sel.value; if(!rc) return;
-    const u=r.unmatched[+sel.dataset.uidx];
-    r.sums[rc]=(r.sums[rc]||0)+u.amount;
-    newAliases.push({marg_name:u.name, rc_code:rc});
-  });
-  const zeroRest=$('#zeroRest').checked;
-  // build updates
+  const newAlias=[];
+  $$('.umap').forEach(sel=>{ if(!sel.value)return; const nm=Object.keys(margCtx.seenP).filter(n=>!margCtx.map[n]).sort((a,b)=>margCtx.seenP[b]-margCtx.seenP[a])[+sel.dataset.um];
+    margCtx.map[nm]=sel.value; newAlias.push({marg_name:nm,rc_code:sel.value}); });
+  // aggregate per rc per bucket
+  const acc={};
+  for(const ln of margCtx.lines){ const rc=margCtx.map[ln.party]; if(!rc)continue;
+    (acc[rc]=acc[rc]||{overall:0}).overall+=ln.val;
+    (DICT[ln.part]||[]).forEach(b=>{ acc[rc][b]=(acc[rc][b]||0)+((b.startsWith('pg:'))?ln.qty:ln.val); }); }
+  const zero=$('#zeroRest').checked;
   const updates=[];
-  for(const p of PARTIES){
-    const newAch = r.sums[p.rc_code] != null ? r.sums[p.rc_code] : (zeroRest ? 0 : (+p.achieved||0));
-    if(newAch !== (+p.achieved||0)) updates.push({rc_code:p.rc_code, achieved:newAch});
-  }
-  $('#applyMarg').textContent='Applying…'; $('#applyMarg').disabled=true;
+  PARTIES.forEach(p=>BUCKETS.forEach(b=>{ const c=p.buckets[b]; if(!c)return;
+    const nv = acc[p.rc_code] && acc[p.rc_code][b]!=null ? Math.round(acc[p.rc_code][b]) : (zero?0:c.live);
+    if(nv!==Math.round(c.live)) updates.push({period:PERIOD,rc_code:p.rc_code,bucket:b,basis:c.basis,achieved_live:nv,target:c.target,achieved_hero:c.hero}); }));
+  $('#applyMarg').textContent='Applying…';$('#applyMarg').disabled=true;
   try{
-    // update achieved per party
-    for(const u of updates){
-      const {error}=await sb.from('hero_parties').update({achieved:u.achieved}).eq('rc_code',u.rc_code);
-      if(error) throw error;
-    }
-    // save learned aliases (so next time they auto-match)
-    if(newAliases.length){
-      await sb.from('hero_marg_aliases').upsert(newAliases,{onConflict:'marg_name'});
-    }
-    await saveMeta('last_marg_upload',{filename:margCtx.file.name, matched:r.matched.length+newAliases.length, total:r.exportRows.length, total_amount:r.totalAmount, ts:Date.now()});
-    await load();
-    $('#margPanel').classList.add('hidden'); matchResult=null;
-    setView('targets');
-    toast(`Updated ${updates.length} parties`);
-  }catch(err){
-    console.error(err); toast('Apply failed: '+(err.message||''),true);
-    $('#applyMarg').textContent='Apply'; $('#applyMarg').disabled=false;
-  }
+    for(let i=0;i<updates.length;i+=500){ const {error}=await sb.from('hero_party_targets').upsert(updates.slice(i,i+500),{onConflict:'period,rc_code,bucket'}); if(error)throw error; }
+    if(newAlias.length) await sb.from('hero_marg_aliases').upsert(newAlias,{onConflict:'marg_name'});
+    await sb.from('hero_meta').upsert({key:'last_marg_'+PERIOD,value:{filename:margCtx.file.name,lines:margCtx.lines.length,ts:Date.now()},updated_at:new Date().toISOString()},{onConflict:'key'});
+    $('#importPanel').innerHTML=''; margCtx=null; await load(); setView('master'); toast(`Updated ${updates.length} cells`);
+  }catch(e){console.error(e);toast('Apply failed: '+(e.message||''),true);$('#applyMarg').textContent='Apply to achievement';$('#applyMarg').disabled=false;}
 }
 
-async function saveMeta(key,value){
-  await sb.from('hero_meta').upsert({key,value,updated_at:new Date().toISOString()},{onConflict:'key'});
-  META[key]=value;
+// ---------- TRACKER ----------
+$('#trkDrop').onclick=()=>$('#trkFile').click();
+$('#trkFile').onchange=e=>{if(e.target.files[0])handleTracker(e.target.files[0]);};
+const BLABELS=[['overall','Overall'],['basket1','Basket 1'],['basket2','Basket 2'],['pg:Chain Sprocket Kit','Chain Sprocket Kit'],['pg:Piston Ring Kit','Piston Ring Kit'],['pg:Wheel Rim','Wheel Rim'],['pg:Cylinder Kit','Cylinder Kit'],['pg:Valve Kit','Valve Kit']];
+function handleTracker(file){
+  readWB(file,wb=>{
+    let sheet=wb.SheetNames.find(n=>/track/i.test(n))||wb.SheetNames[0];
+    const rows=grid(wb,sheet);
+    const hi=findHeader(rows,['rc code','retailer']); if(hi<0){toast('No RC Code/Retailer header found',true);return;}
+    const hdr=rows[hi].map(h=>String(h).toLowerCase().trim());
+    const rc=colIdx(rows[hi],['rc code']), ret=colIdx(rows[hi],['retailer name','retailer']),
+      route=colIdx(rows[hi],['route']), ebd=colIdx(rows[hi],['ebd']);
+    // find target + achievement column groups: each bucket label appears (target then achievement)
+    const occ={}; BLABELS.forEach(([k,lab])=>{occ[k]=[];});
+    rows[hi].forEach((h,idx)=>{ const hl=String(h).toLowerCase().trim();
+      BLABELS.forEach(([k,lab])=>{ if(hl===lab.toLowerCase())occ[k].push(idx); }); });
+    const tgtCol={},achCol={};
+    BLABELS.forEach(([k])=>{ if(occ[k][0]!=null)tgtCol[k]=occ[k][0]; if(occ[k][1]!=null)achCol[k]=occ[k][1]; });
+    const pp=[],tg=[]; let n=0;
+    for(let i=hi+1;i<rows.length;i++){
+      const r=rows[i]; const code=String(r[rc]||'').replace(/\u00a0/g,' ').trim();
+      if(!code||!/\d/.test(code))continue; n++;
+      pp.push({period:PERIOD,rc_code:code,retailer_name:String(r[ret]||'').trim(),route:route>=0?String(r[route]||'').trim():'',ebd_target:ebd>=0?amt(r[ebd]):0,pd_code:'500109'});
+      BLABELS.forEach(([k])=>{ if(tgtCol[k]==null)return; const basis=k.startsWith('pg:')?'qty':'value';
+        tg.push({period:PERIOD,rc_code:code,bucket:k,basis,target:amt(r[tgtCol[k]]),achieved_hero:achCol[k]!=null?amt(r[achCol[k]]):0}); }); }
+    if(!n){toast('No party rows parsed',true);return;}
+    $('#trkMeta').textContent=`${file.name} · ${n} parties`;
+    openModal(`<h3 class="text-[16px] font-semibold">Import tracker</h3><p class="text-[13px] text-ink-mute mt-2">${n} parties, ${Object.keys(tgtCol).length} target buckets detected for <b>${esc(PERIOD)}</b>. Targets & the Hero achievement snapshot will be upserted. Live achievement is untouched.</p>
+      <div class="flex gap-2 mt-4"><button id="okTrk" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Import ${n}</button><button data-close class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Cancel</button></div>`);
+    $('#okTrk').onclick=async()=>{ $('#okTrk').textContent='Importing…';$('#okTrk').disabled=true;
+      try{ for(let i=0;i<pp.length;i+=500)await sb.from('hero_party_period').upsert(pp.slice(i,i+500),{onConflict:'period,rc_code'});
+        // upsert targets without clobbering achieved_live: fetch existing live then merge
+        const ex=await selAll('hero_party_targets','rc_code,bucket,achieved_live',{period:PERIOD});
+        const liveMap={}; ex.forEach(x=>liveMap[x.rc_code+'|'+x.bucket]=x.achieved_live);
+        const merged=tg.map(t=>({...t,achieved_live:liveMap[t.rc_code+'|'+t.bucket]||0}));
+        for(let i=0;i<merged.length;i+=500)await sb.from('hero_party_targets').upsert(merged.slice(i,i+500),{onConflict:'period,rc_code,bucket'});
+        closeModal(); await load(); setView('master'); toast(`Imported ${n} parties`);
+      }catch(e){console.error(e);toast('Import failed: '+(e.message||''),true);} };
+  });
 }
 
-// ===================== INIT =====================
-setView('targets');
-load();
-// gentle re-sync when tab refocuses
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) load(); });
+// ---------- ANNEXURE ----------
+$('#annDrop').onclick=()=>$('#annFile').click();
+$('#annFile').onchange=e=>{if(e.target.files[0])handleAnn(e.target.files[0]);};
+function handleAnn(file){
+  readWB(file,wb=>{
+    const rows=grid(wb,wb.SheetNames[0]);
+    const hi=findHeader(rows,['part']); if(hi<0){toast('No part column found',true);return;}
+    const hdr=rows[hi]; const pc=colIdx(hdr,['part number','part no','part']),sc=colIdx(hdr,['scheme']),gc=colIdx(hdr,['group','pg','description']);
+    const out=[];
+    for(let i=hi+1;i<rows.length;i++){const r=rows[i];const pn=String(r[pc]||'').trim();if(!pn)continue;
+      let sch=String(r[sc]||'').trim().toUpperCase();if(!/^(PG|B1|B2)$/.test(sch))continue;
+      out.push({period:PERIOD,part_number:pn,scheme:sch,pg_group:gc>=0?String(r[gc]||'').trim():'',basis:sch==='PG'?'qty':'value'});}
+    if(!out.length){toast('No PG/B1/B2 rows found — need a scheme column',true);return;}
+    openModal(`<h3 class="text-[16px] font-semibold">Import annexure</h3><p class="text-[13px] text-ink-mute mt-2">${out.length} parts for <b>${esc(PERIOD)}</b>. This sets which parts count in each bucket for this period.</p>
+      <div class="flex gap-2 mt-4"><button id="okAnn" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Import</button><button data-close class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Cancel</button></div>`);
+    $('#okAnn').onclick=async()=>{try{for(let i=0;i<out.length;i+=500)await sb.from('hero_scheme_parts').upsert(out.slice(i,i+500),{onConflict:'period,part_number,scheme'});closeModal();await load();toast(`Imported ${out.length} parts`);}catch(e){toast('Failed: '+(e.message||''),true);}};
+  });
+}
+
+// init
+setView('master'); load();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
 </script>
 </body>
 </html>
