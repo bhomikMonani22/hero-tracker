@@ -152,7 +152,7 @@ const SUPABASE_KEY="sb_publishable_Amja9S9VzUXfPTwPJitjDg_q06Oj5cW";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
-let PERIOD='2026-05', PERIODS=[], PARTIES=[], TMAP={}, DICT={}, BUCKETPARTS={}, ALIASES={}, BUCKETS=[], PCFG={};
+let PERIOD='2026-05', PERIODS=[], PARTIES=[], TMAP={}, DICT={}, BUCKETPARTS={}, ALIASES={}, BUCKETS=[], PCFG={}, SALESTOT={all:{},tracker:{}};
 let view='master';
 
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -165,6 +165,14 @@ const toks=s=>new Set(norm(s).split(' ').filter(Boolean));
 function dice(a,b){const A=toks(a),B=toks(b);if(!A.size||!B.size)return 0;let i=0;A.forEach(x=>{if(B.has(x))i++;});return 2*i/(A.size+B.size);}
 function amt(v){if(typeof v==='number')return v;let s=String(v||'').replace(/[₹,\s]/g,'').replace(/\(([\d.]+)\)/,'-$1').replace(/(cr|dr)$/i,'');const n=parseFloat(s);return isNaN(n)?0:n;}
 const pace=()=>(+$('#weekSel').value||100)/100;
+function autoPacePct(splits){
+  if(!splits||!splits.length) return 100;
+  const dated=splits.filter(s=>s.by).sort((a,b)=>new Date(a.by)-new Date(b.by));
+  if(!dated.length) return 100;
+  const today=new Date(); today.setHours(0,0,0,0);
+  for(const s of dated){ if(new Date(s.by)>=today) return s.pct; }
+  return 100;
+}
 
 async function selAll(table, cols, eq){
   let out=[], from=0;
@@ -186,28 +194,35 @@ async function load(){
     PERIODS=await selAll('hero_periods','period,label,config,weekly_splits');
     if(!PERIODS.find(p=>p.period===PERIOD)) PERIOD=(PERIODS[0]||{}).period||PERIOD;
     PCFG=(PERIODS.find(p=>p.period===PERIOD)||{}).config||{};
-    const [pp,tg,sp,al]=await Promise.all([
+    const [pp,tg,sp,al,me,hp]=await Promise.all([
       selAll('hero_party_period','rc_code,retailer_name,route,rc_type,ebd_target',{period:PERIOD}),
       selAll('hero_party_targets','rc_code,bucket,basis,target,achieved_hero,achieved_live',{period:PERIOD}),
       selAll('hero_scheme_parts','part_number,scheme,pg_group',{period:PERIOD}),
       selAll('hero_marg_aliases','marg_name,rc_code'),
+      selAll('hero_meta','key,value'),
+      selAll('hero_parties','rc_code,marg_name'),
     ]);
+    const margById={}; hp.forEach(h=>margById[h.rc_code]=h.marg_name);
     // parties
     const byrc={}; pp.forEach(p=>byrc[p.rc_code]={...p,buckets:{}});
     const bset=new Set();
     tg.forEach(t=>{ bset.add(t.bucket); (byrc[t.rc_code]=byrc[t.rc_code]||{rc_code:t.rc_code,retailer_name:t.rc_code,buckets:{}}).buckets[t.bucket]={target:+t.target||0,live:+t.achieved_live||0,hero:+t.achieved_hero||0,basis:t.basis}; });
-    PARTIES=Object.values(byrc);
+    PARTIES=Object.values(byrc); PARTIES.forEach(p=>p.marg=margById[p.rc_code]||'');
     BUCKETS=[...bset].sort((a,b)=>{const o=k=>k==='overall'?0:k==='basket1'?1:k==='basket2'?2:3;return o(a)-o(b)||a.localeCompare(b);});
     // dict
     DICT={}; BUCKETPARTS={};
     sp.forEach(d=>{ const b= d.scheme==='PG'?'pg:'+d.pg_group : d.scheme==='B1'?'basket1':'basket2';
       (DICT[d.part_number]=DICT[d.part_number]||[]).push(b); (BUCKETPARTS[b]=BUCKETPARTS[b]||[]).push(d.part_number); });
     ALIASES={}; al.forEach(a=>{ if(a.rc_code) ALIASES[norm(a.marg_name)]=a.rc_code; });
+    const st=(me.find(m=>m.key==='sales_totals_'+PERIOD)||{}).value;
+    SALESTOT = (st&&st.all) ? {all:st.all, tracker:st.tracker||{}} : {all:{},tracker:{}};
     // ui
     $('#periodSel').innerHTML=PERIODS.map(p=>`<option value="${p.period}" ${p.period===PERIOD?'selected':''}>${esc(p.label||p.period)}</option>`).join('');
     const wp=((PERIODS.find(p=>p.period===PERIOD)||{}).weekly_splits)||[];
-    $('#weekSel').innerHTML='<option value="100">Pace: full month</option>'+wp.map(w=>`<option value="${w.pct}">Week ${w.week} (${w.pct}%)</option>`).join('');
-    $('#weekSel').value='100';
+    const autoPct=autoPacePct(wp);
+    $('#weekSel').innerHTML=`<option value="${autoPct}">This week · auto (${autoPct}%)</option><option value="100">Full month (100%)</option>`
+      +wp.map(w=>`<option value="${w.pct}">Week ${w.week} (${w.pct}%)</option>`).join('');
+    $('#weekSel').value=String(autoPct);
     $('#bucketSel').innerHTML=`<option value="overall">Focus: Overall</option>`+BUCKETS.filter(b=>b!=='overall').map(b=>`<option value="${esc(b)}">Focus: ${esc(bucketLabel(b))}</option>`).join('');
     $('#dot').className='h-2 w-2 rounded-full bg-mint-500 pulse'; $('#sync').textContent='live · synced';
     renderMaster(); renderParties();
@@ -222,36 +237,45 @@ function agg(){
 }
 // ---------- MASTER ----------
 function renderMaster(){
-  const A=agg(), pc=pace(), ov=A['overall']||{t:0,l:0};
-  const ovpct=ov.t?ov.l/ov.t*100:0;
+  const A=agg(), pc=pace();
+  const useST = SALESTOT.all && Object.keys(SALESTOT.all).length>0;
+  const liveOf = b => useST && SALESTOT.all[b]!=null ? SALESTOT.all[b] : (A[b]?A[b].l:0);
+  const trkOf  = b => useST && SALESTOT.tracker && SALESTOT.tracker[b]!=null ? SALESTOT.tracker[b] : (A[b]?A[b].l:0);
+  const ovT=(A['overall']||{t:0}).t, ovL=liveOf('overall');
+  const ovpct=ovT?ovL/ovT*100:0;
+  const ovTrk=trkOf('overall'), ovCnt=Math.max(ovL-ovTrk,0);
   let cards=BUCKETS.map(b=>{
-    const x=A[b], pct=x.t?x.l/x.t*100:0, gap=Math.max(x.t-x.l,0);
-    const paceTgt=x.t*pc, behind=x.l<paceTgt;
+    const x=A[b]||{t:0,l:0,at:0,n:0,basis:b.startsWith('pg:')?'qty':'value'};
+    const live=liveOf(b), pct=x.t?live/x.t*100:0, gap=Math.max(x.t-live,0);
+    const paceTgt=x.t*pc, behind=live<paceTgt;
+    const trk=trkOf(b), cnt=Math.max(live-trk,0);
     const col=pct>=100?'bg-mint-500':pct>=60?'bg-lav-500':'bg-lav-300';
     return `<div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 card">
       <div class="flex items-center justify-between"><div class="text-[12px] font-medium">${esc(bucketLabel(b))}</div>
         <span class="text-[10px] px-1.5 py-0.5 rounded-full ${behind&&pc<1?'bg-peach-300 text-ink':'bg-cream-dark text-ink-mute'}">${x.at}/${x.n} done</span></div>
       <div class="flex items-end gap-1.5 mt-1"><div class="text-[20px] font-semibold hd">${pct.toFixed(0)}%</div>
-        <div class="text-[11px] text-ink-mute mb-1">${fmt(x.l,x.basis)} / ${fmt(x.t,x.basis)}</div></div>
+        <div class="text-[11px] text-ink-mute mb-1">${fmt(live,x.basis)} / ${fmt(x.t,x.basis)}</div></div>
       <div class="h-1.5 rounded-full bg-cream-deep mt-1.5 overflow-hidden relative">
         <div class="pfill h-full rounded-full ${col}" style="width:${Math.min(pct,100)}%"></div>
         ${pc<1?`<div class="absolute top-[-2px] bottom-[-2px] w-[2px] bg-ink/40" style="left:${Math.min(pc*100,100)}%"></div>`:''}</div>
-      <div class="text-[11px] text-ink-mute mt-1.5">${gap>0?'gap '+fmt(gap,x.basis):'<span class="text-mint-500">target met</span>'}</div>
+      ${useST&&cnt>0?`<div class="text-[10.5px] text-ink-faint mt-1.5">scheme ${fmt(trk,x.basis)} · counter ${fmt(cnt,x.basis)}</div>`
+        :`<div class="text-[11px] text-ink-mute mt-1.5">${gap>0?'gap '+fmt(gap,x.basis):'<span class="text-mint-500">target met</span>'}</div>`}
     </div>`;
   }).join('');
   $('#v-master').innerHTML=`
     <div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-5 sm:p-6 rise rise-1">
       <div class="flex items-center justify-between flex-wrap gap-3">
-        <div><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Territory overall offtake</div>
-          <div class="flex items-end gap-3 mt-1"><div class="text-[30px] sm:text-[38px] font-semibold hd">${short(ov.l)}</div>
-            <div class="text-ink-mute text-[14px] mb-2">of ${short(ov.t)} · <span class="font-semibold text-ink">${ovpct.toFixed(1)}%</span></div></div></div>
+        <div><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Total sales vs target (all billing)</div>
+          <div class="flex items-end gap-3 mt-1"><div class="text-[30px] sm:text-[38px] font-semibold hd">${short(ovL)}</div>
+            <div class="text-ink-mute text-[14px] mb-2">of ${short(ovT)} · <span class="font-semibold text-ink">${ovpct.toFixed(1)}%</span></div></div>
+          ${useST?`<div class="text-[12px] text-ink-mute mt-1">scheme parties ${short(ovTrk)} · counter &amp; non-tracker ${short(ovCnt)}</div>`:''}</div>
         <div class="text-right"><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium">Remaining to bill</div>
-          <div class="text-[24px] font-semibold hd mt-1">${short(Math.max(ov.t-ov.l,0))}</div></div>
+          <div class="text-[24px] font-semibold hd mt-1">${short(Math.max(ovT-ovL,0))}</div></div>
       </div>
       <div class="h-2.5 rounded-full bg-cream-deep mt-3 overflow-hidden"><div class="pfill h-full rounded-full ${ovpct>=100?'bg-mint-500':'bg-lav-500'}" style="width:${Math.min(ovpct,100)}%"></div></div>
     </div>
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4 rise rise-2">${cards}</div>
-    <p class="text-[12px] text-ink-faint mt-3">Uncapped, gross incl GST. Over-achievers (like SHARMA) count fully into these totals. Pace marker reflects ${pc<1?('week target '+Math.round(pc*100)+'%'):'full month'}.</p>`;
+    <p class="text-[12px] text-ink-faint mt-3">Total sales counts <b>every bill</b> — scheme parties + counter/cash + SHARMA — against the summed tracker targets. Uncapped, gross incl GST.${useST?'':' Paste a Marg export to populate total sales.'}</p>`;
 }
 
 // ---------- PARTIES ----------
@@ -391,9 +415,11 @@ function handleMarg(file){
       const part=String(r[ci.part]||'').trim();
       if(!party||!part||bill.toUpperCase()==='TOTAL')continue;
       const sign=String(r[ci.type]||'').trim().toUpperCase().includes('RE')?-1:1;
-      const gross=(amt(r[ci.amount])+(ci.tax>=0?amt(r[ci.tax]):0))*sign;
-      lines.push({party,part,qty:amt(r[ci.qty])*sign,val:gross});
-      seenP[party]=(seenP[party]||0)+gross;
+      const typ=String(r[ci.type]||'').trim();
+      const q=amt(r[ci.qty]), grossAbs=amt(r[ci.amount])+(ci.tax>=0?amt(r[ci.tax]):0);
+      const key=`${bill}|${part}|${q}|${Math.round(grossAbs)}|${typ}`;
+      lines.push({party,part,qty:q*sign,val:grossAbs*sign,bill,type:typ,key});
+      seenP[party]=(seenP[party]||0)+grossAbs*sign;
     }
     margCtx={file,lines,seenP};
     resolveMarg();
@@ -401,9 +427,9 @@ function handleMarg(file){
 }
 function resolveParty(name){
   const n=norm(name); if(ALIASES[n])return ALIASES[n];
-  for(const p of PARTIES){ if(norm(p.retailer_name)===n)return p.rc_code; }
+  for(const p of PARTIES){ if(norm(p.retailer_name)===n||(p.marg&&norm(p.marg)===n))return p.rc_code; }
   let best=null,bs=0;
-  for(const p of PARTIES){const s=dice(name,p.retailer_name);if(s>bs){bs=s;best=p.rc_code;}}
+  for(const p of PARTIES){const s=Math.max(dice(name,p.retailer_name),p.marg?dice(name,p.marg):0);if(s>bs){bs=s;best=p.rc_code;}}
   return bs>=0.72?best:null;
 }
 function resolveMarg(){
@@ -425,7 +451,7 @@ function resolveMarg(){
         <h3 class="text-[16px] font-semibold">Marg match <span class="display-serif font-normal text-ink-mute">preview</span></h3>
         <div class="flex gap-2 text-[11px]"><span class="px-2.5 py-1 bg-mint-300 rounded-full">${matched} matched</span><span class="px-2.5 py-1 ${unmatched.length?'bg-peach-300':'bg-cream-dark'} rounded-full">${unmatched.length} to map</span></div>
       </div>
-      <label class="mt-3 flex items-center gap-2 text-[12.5px] text-ink-mute cursor-pointer"><input type="checkbox" id="zeroRest" checked class="accent-lav-500 w-4 h-4"/>Set scheme parties absent from this export to 0 (full-month export)</label>
+      <p class="mt-3 text-[12px] text-ink-mute">New unique bills are <b>added</b> to the running total; any bill already counted from a previous paste is skipped automatically. Safe to paste overlapping dumps.</p>
       ${unmatched.length?`<div class="mt-3"><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium mb-1">Unmatched Marg names — map once (saved as alias)</div>
         <div class="scrollwrap overflow-auto border border-cream-deep rounded-xl max-h-80"><table class="w-full text-[13px] min-w-[480px]">
         <thead class="sticky top-0 bg-white"><tr class="text-ink-mute text-[11px] uppercase tracking-wider border-b border-cream-deep"><th class="text-left font-medium px-3 py-2">Marg name</th><th class="text-right font-medium px-3 py-2">Value</th><th class="text-left font-medium px-3 py-2 w-[260px]">Assign</th></tr></thead>
@@ -440,22 +466,38 @@ async function applyMarg(){
   const newAlias=[];
   $$('.umap').forEach(sel=>{ if(!sel.value)return; const nm=Object.keys(margCtx.seenP).filter(n=>!margCtx.map[n]).sort((a,b)=>margCtx.seenP[b]-margCtx.seenP[a])[+sel.dataset.um];
     margCtx.map[nm]=sel.value; newAlias.push({marg_name:nm,rc_code:sel.value}); });
-  // aggregate per rc per bucket
-  const acc={};
-  for(const ln of margCtx.lines){ const rc=margCtx.map[ln.party]; if(!rc)continue;
-    (acc[rc]=acc[rc]||{overall:0}).overall+=ln.val;
-    (DICT[ln.part]||[]).forEach(b=>{ acc[rc][b]=(acc[rc][b]||0)+((b.startsWith('pg:'))?ln.qty:ln.val); }); }
-  const zero=$('#zeroRest').checked;
-  const updates=[];
-  PARTIES.forEach(p=>BUCKETS.forEach(b=>{ const c=p.buckets[b]; if(!c)return;
-    const nv = acc[p.rc_code] && acc[p.rc_code][b]!=null ? Math.round(acc[p.rc_code][b]) : (zero?0:c.live);
-    if(nv!==Math.round(c.live)) updates.push({period:PERIOD,rc_code:p.rc_code,bucket:b,basis:c.basis,achieved_live:nv,target:c.target,achieved_hero:c.hero}); }));
-  $('#applyMarg').textContent='Applying…';$('#applyMarg').disabled=true;
+  // dedup the pasted file by line_key, build ledger rows
+  const seen={}, ledgerRows=[];
+  for(const ln of margCtx.lines){ if(seen[ln.key])continue; seen[ln.key]=1;
+    ledgerRows.push({period:PERIOD,line_key:ln.key,bill_no:ln.bill||'',party:ln.party,part_no:ln.part,qty:ln.qty,value:Math.round(ln.val*100)/100}); }
+  $('#applyMarg').textContent='Saving bills…';$('#applyMarg').disabled=true;
   try{
+    // insert only-new bills (existing keys ignored = no double count)
+    for(let i=0;i<ledgerRows.length;i+=500){
+      const {error}=await sb.from('hero_sales').upsert(ledgerRows.slice(i,i+500),{onConflict:'period,line_key',ignoreDuplicates:true}); if(error)throw error; }
+    if(newAlias.length){ await sb.from('hero_marg_aliases').upsert(newAlias,{onConflict:'marg_name'}); newAlias.forEach(a=>ALIASES[norm(a.marg_name)]=a.rc_code); }
+    // recompute everything from the FULL deduped ledger
+    $('#applyMarg').textContent='Recomputing…';
+    const ledger=await selAll('hero_sales','party,part_no,qty,value',{period:PERIOD});
+    const cache={}, resolveC=nm=>{ if(nm in cache)return cache[nm]; return cache[nm]=resolveParty(nm); };
+    const perp={}, allT={overall:0}, trkT={overall:0};
+    for(const ln of ledger){
+      const v=+ln.value||0, q=+ln.qty||0, bks=DICT[ln.part_no]||[];
+      allT.overall+=v; bks.forEach(b=>{ allT[b]=(allT[b]||0)+(b.startsWith('pg:')?q:v); });
+      const rc=resolveC(ln.party); if(!rc)continue;
+      (perp[rc]=perp[rc]||{overall:0}).overall+=v; bks.forEach(b=>{ perp[rc][b]=(perp[rc][b]||0)+(b.startsWith('pg:')?q:v); });
+      if(String(rc)[0]==='5'){ trkT.overall+=v; bks.forEach(b=>{ trkT[b]=(trkT[b]||0)+(b.startsWith('pg:')?q:v); }); }
+    }
+    Object.keys(allT).forEach(k=>allT[k]=Math.round(allT[k])); Object.keys(trkT).forEach(k=>trkT[k]=Math.round(trkT[k]));
+    const updates=[];
+    PARTIES.forEach(p=>BUCKETS.forEach(b=>{ const c=p.buckets[b]; if(!c)return;
+      const nv=Math.round((perp[p.rc_code]||{})[b]||0);
+      updates.push({period:PERIOD,rc_code:p.rc_code,bucket:b,basis:c.basis,achieved_live:nv,target:c.target,achieved_hero:c.hero}); }));
     for(let i=0;i<updates.length;i+=500){ const {error}=await sb.from('hero_party_targets').upsert(updates.slice(i,i+500),{onConflict:'period,rc_code,bucket'}); if(error)throw error; }
-    if(newAlias.length) await sb.from('hero_marg_aliases').upsert(newAlias,{onConflict:'marg_name'});
     await sb.from('hero_meta').upsert({key:'last_marg_'+PERIOD,value:{filename:margCtx.file.name,lines:margCtx.lines.length,ts:Date.now()},updated_at:new Date().toISOString()},{onConflict:'key'});
-    $('#importPanel').innerHTML=''; margCtx=null; await load(); setView('master'); toast(`Updated ${updates.length} cells`);
+    await sb.from('hero_meta').upsert({key:'sales_totals_'+PERIOD,value:{all:allT,tracker:trkT,filename:margCtx.file.name,ts:Date.now()},updated_at:new Date().toISOString()},{onConflict:'key'});
+    const added=ledgerRows.length; margCtx=null; $('#importPanel').innerHTML=''; await load(); setView('master');
+    toast(`${added} bills in file · ledger now ${ledger.length} unique lines`);
   }catch(e){console.error(e);toast('Apply failed: '+(e.message||''),true);$('#applyMarg').textContent='Apply to achievement';$('#applyMarg').disabled=false;}
 }
 
