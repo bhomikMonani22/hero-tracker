@@ -183,7 +183,7 @@ function bucketShort(k){ if(k==='overall')return 'Ovr'; if(k==='basket1')return 
 
 async function load(){
   try{
-    PERIODS=await selAll('hero_periods','period,label,config');
+    PERIODS=await selAll('hero_periods','period,label,config,weekly_splits');
     if(!PERIODS.find(p=>p.period===PERIOD)) PERIOD=(PERIODS[0]||{}).period||PERIOD;
     PCFG=(PERIODS.find(p=>p.period===PERIOD)||{}).config||{};
     const [pp,tg,sp,al]=await Promise.all([
@@ -205,6 +205,9 @@ async function load(){
     ALIASES={}; al.forEach(a=>{ if(a.rc_code) ALIASES[norm(a.marg_name)]=a.rc_code; });
     // ui
     $('#periodSel').innerHTML=PERIODS.map(p=>`<option value="${p.period}" ${p.period===PERIOD?'selected':''}>${esc(p.label||p.period)}</option>`).join('');
+    const wp=((PERIODS.find(p=>p.period===PERIOD)||{}).weekly_splits)||[];
+    $('#weekSel').innerHTML='<option value="100">Pace: full month</option>'+wp.map(w=>`<option value="${w.pct}">Week ${w.week} (${w.pct}%)</option>`).join('');
+    $('#weekSel').value='100';
     $('#bucketSel').innerHTML=`<option value="overall">Focus: Overall</option>`+BUCKETS.filter(b=>b!=='overall').map(b=>`<option value="${esc(b)}">Focus: ${esc(bucketLabel(b))}</option>`).join('');
     $('#dot').className='h-2 w-2 rounded-full bg-mint-500 pulse'; $('#sync').textContent='live · synced';
     renderMaster(); renderParties();
