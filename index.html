@@ -510,25 +510,31 @@ function handleTracker(file){
     let sheet=wb.SheetNames.find(n=>/track/i.test(n))||wb.SheetNames[0];
     const rows=grid(wb,sheet);
     const hi=findHeader(rows,['rc code','retailer']); if(hi<0){toast('No RC Code/Retailer header found',true);return;}
-    const hdr=rows[hi].map(h=>String(h).toLowerCase().trim());
-    const rc=colIdx(rows[hi],['rc code']), ret=colIdx(rows[hi],['retailer name','retailer']),
-      route=colIdx(rows[hi],['route']), ebd=colIdx(rows[hi],['ebd']);
-    // find target + achievement column groups: each bucket label appears (target then achievement)
-    const occ={}; BLABELS.forEach(([k,lab])=>{occ[k]=[];});
-    rows[hi].forEach((h,idx)=>{ const hl=String(h).toLowerCase().trim();
-      BLABELS.forEach(([k,lab])=>{ if(hl===lab.toLowerCase())occ[k].push(idx); }); });
-    const tgtCol={},achCol={};
-    BLABELS.forEach(([k])=>{ if(occ[k][0]!=null)tgtCol[k]=occ[k][0]; if(occ[k][1]!=null)achCol[k]=occ[k][1]; });
+    const H=rows[hi];
+    const rc=colIdx(H,['rc code']), ret=colIdx(H,['retailer name','retailer']),
+      route=colIdx(H,['route']), ebd=colIdx(H,['ebd']), tm=colIdx(H,['tm']),
+      rctype=colIdx(H,['rc type','rctype']), sampark=colIdx(H,['sampark']);
+    // dynamic buckets: the block runs from the first "Overall" header to the next "Overall"
+    const ovIdx=[]; H.forEach((h,i)=>{ if(String(h).trim().toLowerCase()==='overall') ovIdx.push(i); });
+    if(!ovIdx.length){toast('No bucket columns found (need an "Overall" header)',true);return;}
+    const first=ovIdx[0], second=ovIdx.length>=2?ovIdx[1]:-1, blen=second>=0?second-first:(H.length-first);
+    const bkey=h=>{const t=String(h).trim().toLowerCase(); if(t==='overall')return['overall','value']; if(t==='basket 1'||t==='basket1')return['basket1','value']; if(t==='basket 2'||t==='basket2')return['basket2','value']; return['pg:'+String(h).trim(),'qty'];};
+    const bspec=[];
+    for(let j=0;j<blen;j++){ const h=H[first+j]; if(h==null||String(h).trim()==='')continue; const [k,basis]=bkey(h);
+      bspec.push({key:k,basis,tcol:first+j,acol:second>=0?second+j:-1}); }
     const pp=[],tg=[]; let n=0;
     for(let i=hi+1;i<rows.length;i++){
       const r=rows[i]; const code=String(r[rc]||'').replace(/\u00a0/g,' ').trim();
       if(!code||!/\d/.test(code))continue; n++;
-      pp.push({period:PERIOD,rc_code:code,retailer_name:String(r[ret]||'').trim(),route:route>=0?String(r[route]||'').trim():'',ebd_target:ebd>=0?amt(r[ebd]):0,pd_code:'500109'});
-      BLABELS.forEach(([k])=>{ if(tgtCol[k]==null)return; const basis=k.startsWith('pg:')?'qty':'value';
-        tg.push({period:PERIOD,rc_code:code,bucket:k,basis,target:amt(r[tgtCol[k]]),achieved_hero:achCol[k]!=null?amt(r[achCol[k]]):0}); }); }
+      pp.push({period:PERIOD,rc_code:code,retailer_name:String(r[ret]||'').trim(),pd_code:'500109',
+        route:route>=0?String(r[route]||'').trim():'', ebd_target:ebd>=0?amt(r[ebd]):0,
+        tm:tm>=0?String(r[tm]||'').trim():'', rc_type:rctype>=0?String(r[rctype]||'').trim():'',
+        sampark_ok: sampark>=0? String(r[sampark]||'').trim().toLowerCase()==='yes' : false});
+      bspec.forEach(b=>tg.push({period:PERIOD,rc_code:code,bucket:b.key,basis:b.basis,
+        target:amt(r[b.tcol]), achieved_hero:b.acol>=0?amt(r[b.acol]):0})); }
     if(!n){toast('No party rows parsed',true);return;}
     $('#trkMeta').textContent=`${file.name} · ${n} parties`;
-    openModal(`<h3 class="text-[16px] font-semibold">Import tracker</h3><p class="text-[13px] text-ink-mute mt-2">${n} parties, ${Object.keys(tgtCol).length} target buckets detected for <b>${esc(PERIOD)}</b>. Targets & the Hero achievement snapshot will be upserted. Live achievement is untouched.</p>
+    openModal(`<h3 class="text-[16px] font-semibold">Import tracker</h3><p class="text-[13px] text-ink-mute mt-2">${n} parties, ${bspec.length} buckets detected for <b>${esc(PERIOD)}</b>: ${bspec.map(b=>esc(bucketLabel(b.key))).join(', ')}. Targets & the Hero achievement snapshot will be upserted; live achievement is untouched.</p>
       <div class="flex gap-2 mt-4"><button id="okTrk" class="bg-ink text-cream rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Import ${n}</button><button data-close class="bg-cream/60 border border-cream-deep rounded-lg px-4 py-2.5 text-[13px] font-medium flex-1">Cancel</button></div>`);
     $('#okTrk').onclick=async()=>{ $('#okTrk').textContent='Importing…';$('#okTrk').disabled=true;
       try{ for(let i=0;i<pp.length;i+=500)await sb.from('hero_party_period').upsert(pp.slice(i,i+500),{onConflict:'period,rc_code'});
