@@ -437,28 +437,63 @@ function handleMarg(file){
     let sheet=wb.SheetNames[0],best=0;
     wb.SheetNames.forEach(n=>{const c=XLSX.utils.decode_range(wb.Sheets[n]['!ref']||'A1').e.r;if(c>best){best=c;sheet=n;}});
     const rows=grid(wb,sheet);
-    const hi=findHeader(rows,['party','part']); if(hi<0){toast('Could not find Party/Part columns',true);return;}
-    const hdr=rows[hi];
-    const ci={party:colIdx(hdr,['party name','party']),part:colIdx(hdr,['part no','part no.','part number']),
-      qty:colIdx(hdr,['qty','quantity']),amount:colIdx(hdr,['amount']),tax:colIdx(hdr,['tax amount','tax']),
-      type:colIdx(hdr,['type']),bill:colIdx(hdr,['bill no','bill no#','voucher'])};
-    // parse
-    const lines=[]; const seenP={};
-    for(let i=hi+1;i<rows.length;i++){
-      const r=rows[i]; const bill=String(r[ci.bill]||'').trim();
-      const party=String(r[ci.party]||'').replace(/\u00a0/g,' ').trim();
-      const part=String(r[ci.part]||'').trim();
-      if(!party||!part||bill.toUpperCase()==='TOTAL')continue;
-      const sign=String(r[ci.type]||'').trim().toUpperCase().includes('RE')?-1:1;
-      const typ=String(r[ci.type]||'').trim();
-      const q=amt(r[ci.qty]), grossAbs=amt(r[ci.amount])+(ci.tax>=0?amt(r[ci.tax]):0);
-      const key=`${bill}|${part}|${q}|${Math.round(grossAbs)}|${typ}`;
-      lines.push({party,part,qty:q*sign,val:grossAbs*sign,bill,type:typ,key});
-      seenP[party]=(seenP[party]||0)+grossAbs*sign;
-    }
-    margCtx={file,lines,seenP};
-    resolveMarg();
+    const hi=findHeader(rows,['party','part']);
+    const hasBill = hi>=0 && colIdx(rows[hi],['bill no','bill no#','voucher'])>=0;
+    if(hasBill){ parseFlatMarg(rows,hi,file); return; }
+    if(looksGrouped(rows)){ parseGroupedMarg(rows,file); return; }
+    if(hi>=0){ parseFlatMarg(rows,hi,file); return; }
+    toast('Unrecognized Marg layout — use the Party-vs-Item or Party/Product summary export',true);
   });
+}
+function looksGrouped(rows){
+  let party=0,part=0;
+  for(let i=0;i<Math.min(rows.length,120);i++){
+    const a=String(rows[i][0]||'').trim();
+    if(/^\d+\.\s+\S/.test(a) && !String(rows[i][1]||'').trim()) party++;
+    else if(/^[A-Z0-9]{5,}\b/.test(a) && (String(rows[i][1]||'').trim()||String(rows[i][2]||'').trim())) part++;
+  }
+  return party>=1 && part>=3;
+}
+function parseFlatMarg(rows,hi,file){
+  const hdr=rows[hi];
+  const ci={party:colIdx(hdr,['party name','party']),part:colIdx(hdr,['part no','part no.','part number']),
+    qty:colIdx(hdr,['qty','quantity']),amount:colIdx(hdr,['amount']),tax:colIdx(hdr,['tax amount','tax']),
+    type:colIdx(hdr,['type']),bill:colIdx(hdr,['bill no','bill no#','voucher'])};
+  const lines=[]; const seenP={};
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i]; const bill=String(r[ci.bill]||'').trim();
+    const party=String(r[ci.party]||'').replace(/\u00a0/g,' ').trim();
+    const part=String(r[ci.part]||'').trim();
+    if(!party||!part||bill.toUpperCase()==='TOTAL')continue;
+    const sign=String(r[ci.type]||'').trim().toUpperCase().includes('RE')?-1:1;
+    const typ=String(r[ci.type]||'').trim();
+    const q=amt(r[ci.qty]), grossAbs=amt(r[ci.amount])+(ci.tax>=0?amt(r[ci.tax]):0);
+    const key=`${bill}|${part}|${q}|${Math.round(grossAbs)}|${typ}`;
+    lines.push({party,part,qty:q*sign,val:grossAbs*sign,bill,type:typ,key});
+    seenP[party]=(seenP[party]||0)+grossAbs*sign;
+  }
+  margCtx={file,lines,seenP,snapshot:false};
+  resolveMarg();
+}
+function parseGroupedMarg(rows,file){
+  const lines=[]; const seenP={}; let curParty=null;
+  for(let i=0;i<rows.length;i++){
+    const a=String(rows[i][0]||'').replace(/\u00a0/g,' ').trim();
+    const b=String(rows[i][1]||'').trim(), c=String(rows[i][2]||'').trim();
+    if(/^total\b/i.test(a)) break;                                  // grand total -> stop
+    if(/page\s*no/i.test(b+c) || /sales summary/i.test(a) || /continued/i.test(c) || /sub\s*total/i.test(a) || a.toUpperCase().includes('YANTRAYUG')) continue;
+    const pm=a.match(/^\d+\.\s+(.+\S)\s*$/);
+    if(pm && !b && !c){ curParty=pm[1].trim(); continue; }          // party header
+    const m=a.match(/^([A-Z0-9]+)\b/);                              // part line (real part nos contain a digit)
+    if(curParty && m && /\d/.test(m[1]) && m[1].length>=5 && (b||c)){
+      const part=m[1];
+      const qty=parseFloat(b.replace(/[^\d.\-]/g,''))||0;
+      const val=amt(c);
+      if(val||qty){ lines.push({party:curParty,part,qty,val,bill:'',type:'',key:null}); seenP[curParty]=(seenP[curParty]||0)+val; }
+    }
+  }
+  margCtx={file,lines,seenP,snapshot:true};
+  resolveMarg();
 }
 function resolveParty(name){
   const n=norm(name); if(ALIASES[n])return ALIASES[n];
@@ -474,7 +509,7 @@ function resolveMarg(){
   const unmatched=names.filter(n=>!map[n]).sort((a,b)=>margCtx.seenP[b]-margCtx.seenP[a]);
   const matched=names.length-unmatched.length;
   const total=Object.values(margCtx.seenP).reduce((s,v)=>s+v,0);
-  $('#margMeta').textContent=`${margCtx.file.name} · ${margCtx.lines.length} lines · ${short(total)}`;
+  $('#margMeta').textContent=`${margCtx.file.name} · ${margCtx.lines.length} lines · ${short(total)}${margCtx.snapshot?' · summary':''}`;
   const opts=PARTIES.slice().sort((a,b)=>a.retailer_name.localeCompare(b.retailer_name)).map(p=>`<option value="${esc(p.rc_code)}">${esc(p.retailer_name)} (${esc(p.rc_code)})</option>`).join('');
   const urows=unmatched.map((nm,i)=>`<tr class="border-b border-cream-dark/60">
     <td class="px-3 py-2 text-[12.5px]">${esc(nm)}</td><td class="px-3 py-2 text-right font-mono text-[12px]">${inr(margCtx.seenP[nm])}</td>
@@ -486,7 +521,9 @@ function resolveMarg(){
         <h3 class="text-[16px] font-semibold">Marg match <span class="display-serif font-normal text-ink-mute">preview</span></h3>
         <div class="flex gap-2 text-[11px]"><span class="px-2.5 py-1 bg-mint-300 rounded-full">${matched} matched</span><span class="px-2.5 py-1 ${unmatched.length?'bg-peach-300':'bg-cream-dark'} rounded-full">${unmatched.length} to map</span></div>
       </div>
-      <p class="mt-3 text-[12px] text-ink-mute">New unique bills are <b>added</b> to the running total; any bill already counted from a previous paste is skipped automatically. Safe to paste overlapping dumps.</p>
+      <p class="mt-3 text-[12px] text-ink-mute">${margCtx.snapshot
+        ? 'Cumulative <b>summary</b> (no bill numbers): this <b>replaces</b> the period\'s achievement with these totals. Re-uploading the latest summary is always safe — it never double-counts. <span class="text-peach-500">Amount is taken as-is; if your summary is before-GST, numbers read lower than gross.</span>'
+        : 'New unique bills are <b>added</b> to the running total; any bill already counted from a previous paste is skipped automatically. Safe to paste overlapping dumps.'}</p>
       ${unmatched.length?`<div class="mt-3"><div class="text-[11px] uppercase tracking-wider text-ink-mute font-medium mb-1">Unmatched Marg names — map once (saved as alias)</div>
         <div class="scrollwrap overflow-auto border border-cream-deep rounded-xl max-h-80"><table class="w-full text-[13px] min-w-[480px]">
         <thead class="sticky top-0 bg-white"><tr class="text-ink-mute text-[11px] uppercase tracking-wider border-b border-cream-deep"><th class="text-left font-medium px-3 py-2">Marg name</th><th class="text-right font-medium px-3 py-2">Value</th><th class="text-left font-medium px-3 py-2 w-[260px]">Assign</th></tr></thead>
@@ -501,6 +538,7 @@ async function applyMarg(){
   const newAlias=[];
   $$('.umap').forEach(sel=>{ if(!sel.value)return; const nm=Object.keys(margCtx.seenP).filter(n=>!margCtx.map[n]).sort((a,b)=>margCtx.seenP[b]-margCtx.seenP[a])[+sel.dataset.um];
     margCtx.map[nm]=sel.value; newAlias.push({marg_name:nm,rc_code:sel.value}); });
+  if(margCtx.snapshot){ return applySnapshot(newAlias); }
   // dedup the pasted file by line_key, build ledger rows
   const seen={}, ledgerRows=[];
   for(const ln of margCtx.lines){ if(seen[ln.key])continue; seen[ln.key]=1;
@@ -535,8 +573,29 @@ async function applyMarg(){
     toast(`${added} bills in file · ledger now ${ledger.length} unique lines`);
   }catch(e){console.error(e);toast('Apply failed: '+(e.message||''),true);$('#applyMarg').textContent='Apply to achievement';$('#applyMarg').disabled=false;}
 }
-
-// ---------- TRACKER ----------
+async function applySnapshot(newAlias){
+  $('#applyMarg').textContent='Applying…';$('#applyMarg').disabled=true;
+  try{
+    if(newAlias.length){ await sb.from('hero_marg_aliases').upsert(newAlias,{onConflict:'marg_name'}); newAlias.forEach(a=>ALIASES[norm(a.marg_name)]=a.rc_code); }
+    const perp={}, allT={overall:0}, trkT={overall:0};
+    for(const ln of margCtx.lines){
+      const v=+ln.val||0, q=+ln.qty||0, bks=DICT[ln.part]||[];
+      allT.overall+=v; bks.forEach(b=>{ allT[b]=(allT[b]||0)+(b.startsWith('pg:')?q:v); });
+      const rc=margCtx.map[ln.party]; if(!rc)continue;
+      (perp[rc]=perp[rc]||{overall:0}).overall+=v; bks.forEach(b=>{ perp[rc][b]=(perp[rc][b]||0)+(b.startsWith('pg:')?q:v); });
+      if(String(rc)[0]==='5'){ trkT.overall+=v; bks.forEach(b=>{ trkT[b]=(trkT[b]||0)+(b.startsWith('pg:')?q:v); }); }
+    }
+    Object.keys(allT).forEach(k=>allT[k]=Math.round(allT[k])); Object.keys(trkT).forEach(k=>trkT[k]=Math.round(trkT[k]));
+    const updates=[];
+    PARTIES.forEach(p=>BUCKETS.forEach(b=>{ const c=p.buckets[b]; if(!c)return;
+      updates.push({period:PERIOD,rc_code:p.rc_code,bucket:b,basis:c.basis,achieved_live:Math.round((perp[p.rc_code]||{})[b]||0),target:c.target,achieved_hero:c.hero}); }));
+    for(let i=0;i<updates.length;i+=500){ const {error}=await sb.from('hero_party_targets').upsert(updates.slice(i,i+500),{onConflict:'period,rc_code,bucket'}); if(error)throw error; }
+    await sb.from('hero_meta').upsert({key:'sales_totals_'+PERIOD,value:{all:allT,tracker:trkT,filename:margCtx.file.name,ts:Date.now()},updated_at:new Date().toISOString()},{onConflict:'key'});
+    await sb.from('hero_meta').upsert({key:'last_marg_'+PERIOD,value:{filename:margCtx.file.name,lines:margCtx.lines.length,ts:Date.now(),snapshot:true},updated_at:new Date().toISOString()},{onConflict:'key'});
+    margCtx=null; $('#importPanel').innerHTML=''; await load(); setView('master');
+    toast(`Summary applied · total sales ${short(allT.overall)}`);
+  }catch(e){console.error(e);toast('Apply failed: '+(e.message||''),true);$('#applyMarg').textContent='Apply to achievement';$('#applyMarg').disabled=false;}
+}
 $('#trkDrop').onclick=()=>$('#trkFile').click();
 $('#trkFile').onchange=e=>{if(e.target.files[0])handleTracker(e.target.files[0]);};
 const BLABELS=[['overall','Overall'],['basket1','Basket 1'],['basket2','Basket 2'],['pg:Chain Sprocket Kit','Chain Sprocket Kit'],['pg:Piston Ring Kit','Piston Ring Kit'],['pg:Wheel Rim','Wheel Rim'],['pg:Cylinder Kit','Cylinder Kit'],['pg:Valve Kit','Valve Kit']];
