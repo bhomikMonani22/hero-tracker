@@ -385,22 +385,26 @@ function exportDump(){
   const hasLive=PARTIES.some(p=>BUCKETS.some(b=>p.buckets[b]&&p.buckets[b].live>0));
   const achOf=c=>hasLive?(c.live||0):(c.hero||0);
   const src=hasLive?'Live Marg':'Hero snapshot';
-  const head=['RC Code','Retailer','RC Type','Route'];
-  BUCKETS.forEach(b=>{const L=bucketLabel(b);head.push(L+' Target',L+' Achieved',L+' Balance');});
+  const head=['RC Code','Retailer'];
+  BUCKETS.forEach(b=>head.push(bucketLabel(b)+' Balance'));
+  BUCKETS.forEach(b=>head.push(bucketLabel(b)+' Target'));
+  BUCKETS.forEach(b=>head.push(bucketLabel(b)+' Achieved'));
   const aoa=[head];
   const parties=PARTIES.slice().sort((a,b)=>(a.retailer_name||'').localeCompare(b.retailer_name||''));
-  parties.forEach(p=>{
-    const row=[p.rc_code||'',p.retailer_name||'',p.rc_type||'',p.route||''];
+  const cellsFor=p=>{
+    const bal=[],tgt=[],ach=[];
     BUCKETS.forEach(b=>{const c=p.buckets[b]||{target:0,live:0,hero:0};
-      const t=Math.round(c.target||0),a=Math.round(achOf(c));row.push(t,a,t-a);});
-    aoa.push(row);
-  });
-  const tot=['TOTAL','','',''];
-  BUCKETS.forEach(b=>{let t=0,a=0;parties.forEach(p=>{const c=p.buckets[b];if(c){t+=c.target||0;a+=achOf(c);}});
-    t=Math.round(t);a=Math.round(a);tot.push(t,a,t-a);});
-  aoa.push(tot);
+      const t=Math.round(c.target||0),a=Math.round(achOf(c));bal.push(t-a);tgt.push(t);ach.push(a);});
+    return [...bal,...tgt,...ach];
+  };
+  parties.forEach(p=>aoa.push([p.rc_code||'',p.retailer_name||'',...cellsFor(p)]));
+  // totals
+  const sum={};BUCKETS.forEach(b=>sum[b]={t:0,a:0});
+  parties.forEach(p=>BUCKETS.forEach(b=>{const c=p.buckets[b];if(c){sum[b].t+=c.target||0;sum[b].a+=achOf(c);}}));
+  const tBal=BUCKETS.map(b=>Math.round(sum[b].t-sum[b].a)), tT=BUCKETS.map(b=>Math.round(sum[b].t)), tA=BUCKETS.map(b=>Math.round(sum[b].a));
+  aoa.push(['TOTAL','',...tBal,...tT,...tA]);
   const ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols']=head.map((h,i)=>i===1?{wch:30}:i<4?{wch:16}:{wch:15});
+  ws['!cols']=head.map((h,i)=>i===1?{wch:30}:i===0?{wch:18}:{wch:15});
   ws['!freeze']={xSplit:2,ySplit:1};
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,('Dump '+PERIOD).slice(0,31));
