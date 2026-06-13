@@ -80,6 +80,7 @@ tailwind.config = { theme: { extend: {
     <div class="p-1 bg-cream-dark/60 rounded-full border border-cream-deep inline-flex">
       <button data-view="master" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Master</button>
       <button data-view="parties" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Parties</button>
+      <button data-view="parts" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Parts</button>
       <button data-view="imports" class="navpill px-4 py-2 rounded-full text-[13px] font-medium transition">Imports</button>
     </div>
     <div class="flex items-center gap-2">
@@ -112,6 +113,17 @@ tailwind.config = { theme: { extend: {
     </div>
     <div id="partyList" class="space-y-2.5"></div>
     <div id="partyEmpty" class="hidden py-16 text-center text-ink-mute text-[13px]">No parties match.</div>
+  </section>
+
+  <!-- PARTS CATALOG -->
+  <section id="v-parts" class="pt-5 pb-24 hidden">
+    <div class="flex items-center gap-2.5 flex-wrap mb-4">
+      <input id="partSearch" placeholder="Search part number…" autocomplete="off" autocorrect="off" spellcheck="false"
+        class="flex-1 min-w-[200px] px-3.5 py-2.5 rounded-lg border border-cream-deep bg-cream/40 focus:bg-white focus:border-ink-soft text-[14px]" />
+      <button id="partsExport" class="px-3.5 py-2.5 rounded-lg bg-ink text-cream text-[13px] font-medium hover:bg-ink-soft whitespace-nowrap">⤓ Excel</button>
+    </div>
+    <div id="partsSummary"></div>
+    <div id="partsList" class="space-y-2.5 mt-1"></div>
   </section>
 
   <!-- IMPORTS -->
@@ -226,7 +238,7 @@ async function load(){
     $('#weekSel').value=String(autoPct);
     $('#bucketSel').innerHTML=`<option value="overall">Focus: Overall</option>`+BUCKETS.filter(b=>b!=='overall').map(b=>`<option value="${esc(b)}">Focus: ${esc(bucketLabel(b))}</option>`).join('');
     $('#dot').className='h-2 w-2 rounded-full bg-mint-500 pulse'; $('#sync').textContent='live · synced';
-    renderMaster(); renderParties();
+    renderMaster(); renderParties(); renderCatalog();
   }catch(e){ console.error(e); $('#dot').className='h-2 w-2 rounded-full bg-peach-500'; $('#sync').textContent='offline'; toast('Load failed',true); }
 }
 
@@ -413,8 +425,47 @@ function exportDump(){
 }
 $('#dumpBtn').onclick=exportDump;
 
+// ---------- PARTS CATALOG (all scheme parts by bucket for the period) ----------
+function catalogBuckets(){
+  return Object.keys(BUCKETPARTS).sort((a,b)=>{const o=k=>k==='basket1'?0:k==='basket2'?1:2;return o(a)-o(b)||a.localeCompare(b);});
+}
+function renderCatalog(){
+  const q=String($('#partSearch').value||'').toUpperCase().replace(/\s+/g,'');
+  const buckets=catalogBuckets();
+  const distinct=Object.keys(DICT).length;
+  $('#partsSummary').innerHTML=`<div class="bg-white rounded-2xl border border-cream-deep/70 shadow-card p-4 text-[12.5px] leading-relaxed">
+    <span class="font-semibold">${distinct}</span> distinct scheme parts in <b>${esc(PERIOD)}</b>
+    <span class="text-ink-mute"> · ${buckets.map(b=>`${esc(bucketLabel(b))} <span class="font-mono">${(BUCKETPARTS[b]||[]).length}</span>`).join(' · ')}</span></div>`;
+  let html=buckets.map(b=>{
+    let parts=(BUCKETPARTS[b]||[]).slice().sort();
+    if(q) parts=parts.filter(p=>p.toUpperCase().includes(q));
+    if(q && !parts.length) return '';
+    const chips=parts.map(p=>`<span class="font-mono text-[11px] bg-cream-dark rounded px-1.5 py-0.5">${esc(p)}</span>`).join(' ');
+    return `<details ${q?'open':''} class="bg-white rounded-2xl border border-cream-deep/70 shadow-card overflow-hidden">
+      <summary class="p-4 cursor-pointer hover:bg-cream/40 transition flex items-center justify-between gap-3">
+        <span class="font-medium text-[14px]">${esc(bucketLabel(b))}</span>
+        <span class="text-[11px] text-ink-mute">${parts.length}${q?' match':' part'+(parts.length===1?'':'s')} · ${b.startsWith('pg:')?'qty basis':'value basis'}</span>
+      </summary>
+      <div class="px-4 pb-4 pt-2 border-t border-cream-dark/60 flex flex-wrap gap-1">${chips||'<span class="text-[12px] text-ink-mute">no parts</span>'}</div>
+    </details>`;
+  }).filter(Boolean).join('');
+  const noParts=BUCKETS.filter(b=>b!=='overall' && !BUCKETPARTS[b]);
+  if(noParts.length && !q) html+=`<p class="text-[12px] text-peach-500 mt-1">No parts loaded for: ${noParts.map(b=>esc(bucketLabel(b))).join(', ')} — these track a target but achievement stays 0 until parts are added.</p>`;
+  $('#partsList').innerHTML=html||'<div class="py-16 text-center text-ink-mute text-[13px]">No part matches.</div>';
+}
+$('#partSearch').addEventListener('input',renderCatalog);
+$('#partsExport').onclick=()=>{
+  const rows=[['Part Number','Bucket','Scheme','Basis']];
+  catalogBuckets().forEach(b=>{ const scheme=b==='basket1'?'B1':b==='basket2'?'B2':'PG';
+    (BUCKETPARTS[b]||[]).slice().sort().forEach(p=>rows.push([p,bucketLabel(b),scheme,b.startsWith('pg:')?'qty':'value'])); });
+  const ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:20},{wch:26},{wch:8},{wch:8}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,('Parts '+PERIOD).slice(0,31));
+  XLSX.writeFile(wb,`hero-parts-${PERIOD}-${new Date().toISOString().slice(0,10)}.xlsx`);
+  toast(`Exported ${rows.length-1} parts`);
+};
+
 // ---------- NAV ----------
-function setView(v){view=v;['master','parties','imports'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));
+function setView(v){view=v;['master','parties','parts','imports'].forEach(x=>$('#v-'+x).classList.toggle('hidden',x!==v));
   $$('.navpill').forEach(b=>{const on=b.dataset.view===v;b.className='navpill px-4 py-2 rounded-full text-[13px] font-medium transition '+(on?'bg-ink text-cream':'text-ink-mute hover:bg-cream-dark/40');});}
 $$('.navpill').forEach(b=>b.onclick=()=>setView(b.dataset.view));
 function openModal(h){$('#modalBody').innerHTML=h;$('#modal').classList.remove('hidden');}
