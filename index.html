@@ -165,7 +165,7 @@ const SUPABASE_KEY="sb_publishable_Amja9S9VzUXfPTwPJitjDg_q06Oj5cW";
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 
-let PERIOD='2026-05', PERIODS=[], PARTIES=[], TMAP={}, DICT={}, BUCKETPARTS={}, ALIASES={}, BUCKETS=[], PCFG={}, SALESTOT={all:{},tracker:{}};
+let PERIOD='2026-05', PERIODS=[], PARTIES=[], TMAP={}, DICT={}, BUCKETPARTS={}, ALIASES={}, BUCKETS=[], PCFG={}, SALESTOT={all:{},tracker:{}}, PARTDESC={};
 let view='master';
 
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
@@ -210,7 +210,7 @@ async function load(){
     const [pp,tg,sp,al,me,hp]=await Promise.all([
       selAll('hero_party_period','rc_code,retailer_name,route,rc_type,ebd_target',{period:PERIOD}),
       selAll('hero_party_targets','rc_code,bucket,basis,target,achieved_hero,achieved_live',{period:PERIOD}),
-      selAll('hero_scheme_parts','part_number,scheme,pg_group',{period:PERIOD}),
+      selAll('hero_scheme_parts','part_number,scheme,pg_group,description',{period:PERIOD}),
       selAll('hero_marg_aliases','marg_name,rc_code'),
       selAll('hero_meta','key,value'),
       selAll('hero_parties','rc_code,marg_name'),
@@ -223,9 +223,10 @@ async function load(){
     PARTIES=Object.values(byrc); PARTIES.forEach(p=>p.marg=margById[p.rc_code]||'');
     BUCKETS=[...bset].sort((a,b)=>{const o=k=>k==='overall'?0:k==='basket1'?1:k==='basket2'?2:3;return o(a)-o(b)||a.localeCompare(b);});
     // dict
-    DICT={}; BUCKETPARTS={};
+    DICT={}; BUCKETPARTS={}; PARTDESC={};
     sp.forEach(d=>{ const b= d.scheme==='PG'?'pg:'+d.pg_group : d.scheme==='B1'?'basket1':'basket2';
-      (DICT[d.part_number]=DICT[d.part_number]||[]).push(b); (BUCKETPARTS[b]=BUCKETPARTS[b]||[]).push(d.part_number); });
+      (DICT[d.part_number]=DICT[d.part_number]||[]).push(b); (BUCKETPARTS[b]=BUCKETPARTS[b]||[]).push(d.part_number);
+      if(d.description) PARTDESC[d.part_number]=d.description; });
     ALIASES={}; al.forEach(a=>{ if(a.rc_code) ALIASES[norm(a.marg_name)]=a.rc_code; });
     const st=(me.find(m=>m.key==='sales_totals_'+PERIOD)||{}).value;
     SALESTOT = (st&&st.all) ? {all:st.all, tracker:st.tracker||{}} : {all:{},tracker:{}};
@@ -364,7 +365,7 @@ function partyDetail(p,pc){
   let recs=BUCKETS.filter(b=>b!=='overall').map(b=>{
     const c=p.buckets[b]; if(!c||c.target<=0||c.live>=c.target)return '';
     const gap=c.target-c.live, parts=(BUCKETPARTS[b]||[]);
-    const list=parts.slice(0,10).map(pn=>`<span class="font-mono text-[10.5px] bg-cream-dark rounded px-1.5 py-0.5">${esc(pn)}</span>`).join(' ');
+    const list=parts.slice(0,10).map(pn=>`<span class="font-mono text-[10.5px] bg-cream-dark rounded px-1.5 py-0.5" title="${esc(PARTDESC[pn]||'')}">${esc(pn)}</span>`).join(' ');
     return `<div class="mt-2"><span class="text-[12px] font-medium">${esc(bucketLabel(b))}:</span>
       <span class="text-[12px] text-peach-500 font-medium">need ${fmt(gap,c.basis)} more</span>
       ${parts.length?`<div class="mt-1 flex flex-wrap gap-1">${list}${parts.length>10?`<span class="text-[10.5px] text-ink-faint">+${parts.length-10} more parts</span>`:''}</div>`:''}</div>`;
@@ -438,15 +439,17 @@ function renderCatalog(){
     <span class="text-ink-mute"> · ${buckets.map(b=>`${esc(bucketLabel(b))} <span class="font-mono">${(BUCKETPARTS[b]||[]).length}</span>`).join(' · ')}</span></div>`;
   let html=buckets.map(b=>{
     let parts=(BUCKETPARTS[b]||[]).slice().sort();
-    if(q) parts=parts.filter(p=>p.toUpperCase().includes(q));
+    if(q) parts=parts.filter(p=>p.toUpperCase().includes(q)||(PARTDESC[p]||'').toUpperCase().includes(q));
     if(q && !parts.length) return '';
-    const chips=parts.map(p=>`<span class="font-mono text-[11px] bg-cream-dark rounded px-1.5 py-0.5">${esc(p)}</span>`).join(' ');
+    const list=parts.map(p=>`<div class="flex items-baseline gap-2 py-0.5">
+        <span class="font-mono text-[11px] bg-cream-dark rounded px-1.5 py-0.5 shrink-0">${esc(p)}</span>
+        <span class="text-[12px] text-ink-mute truncate">${esc(PARTDESC[p]||'')}</span></div>`).join('');
     return `<details ${q?'open':''} class="bg-white rounded-2xl border border-cream-deep/70 shadow-card overflow-hidden">
       <summary class="p-4 cursor-pointer hover:bg-cream/40 transition flex items-center justify-between gap-3">
         <span class="font-medium text-[14px]">${esc(bucketLabel(b))}</span>
         <span class="text-[11px] text-ink-mute">${parts.length}${q?' match':' part'+(parts.length===1?'':'s')} · ${b.startsWith('pg:')?'qty basis':'value basis'}</span>
       </summary>
-      <div class="px-4 pb-4 pt-2 border-t border-cream-dark/60 flex flex-wrap gap-1">${chips||'<span class="text-[12px] text-ink-mute">no parts</span>'}</div>
+      <div class="px-4 pb-3 pt-2 border-t border-cream-dark/60">${list||'<span class="text-[12px] text-ink-mute">no parts</span>'}</div>
     </details>`;
   }).filter(Boolean).join('');
   const noParts=BUCKETS.filter(b=>b!=='overall' && !BUCKETPARTS[b]);
@@ -455,10 +458,10 @@ function renderCatalog(){
 }
 $('#partSearch').addEventListener('input',renderCatalog);
 $('#partsExport').onclick=()=>{
-  const rows=[['Part Number','Bucket','Scheme','Basis']];
+  const rows=[['Part Number','Description','Bucket','Scheme','Basis']];
   catalogBuckets().forEach(b=>{ const scheme=b==='basket1'?'B1':b==='basket2'?'B2':'PG';
-    (BUCKETPARTS[b]||[]).slice().sort().forEach(p=>rows.push([p,bucketLabel(b),scheme,b.startsWith('pg:')?'qty':'value'])); });
-  const ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:20},{wch:26},{wch:8},{wch:8}];
+    (BUCKETPARTS[b]||[]).slice().sort().forEach(p=>rows.push([p,PARTDESC[p]||'',bucketLabel(b),scheme,b.startsWith('pg:')?'qty':'value'])); });
+  const ws=XLSX.utils.aoa_to_sheet(rows); ws['!cols']=[{wch:20},{wch:42},{wch:26},{wch:8},{wch:8}];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,('Parts '+PERIOD).slice(0,31));
   XLSX.writeFile(wb,`hero-parts-${PERIOD}-${new Date().toISOString().slice(0,10)}.xlsx`);
   toast(`Exported ${rows.length-1} parts`);
